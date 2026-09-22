@@ -21,7 +21,7 @@ public sealed class WpfWindowService : IWindowService
     {
         _dispatcher.BeginInvoke(() =>
         {
-            SettingsWindow.Open();
+            SettingsWindow.Open(tab);
         });
     }
 

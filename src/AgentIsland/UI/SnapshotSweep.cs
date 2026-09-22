@@ -10,7 +10,8 @@ namespace AgentIsland.UI;
 /// CI verification rig: AGENTISLAND_SNAPSHOT_DIR renders every major
 /// surface — report cards AND the report window chrome (pager + calendar),
 /// the island in compact/expanded and on every carousel page, the release
-/// and guide cards, the alarm dialog, all seven settings tabs — into the
+/// and guide cards, approval/transcript surfaces, every provider alarm dialog,
+/// and all seven settings tabs — into the
 /// directory and exits. Run under AGENTISLAND_DEMO=1 on a Windows runner,
 /// this is how the port gets eyeballed frame by frame without a hand
 /// install.
@@ -21,10 +22,19 @@ public static class SnapshotSweep
     public static void Run(Application app, IslandWindow island, string dir)
     {
         Directory.CreateDirectory(dir);
+        Try(() => RenderApprovalCards(dir));
 
         // The cost page hides by default; the sweep must SEE it (runner-local
         var screenPref = (App.Instance?.Services?.GetService(typeof(ScreenPref)) as ScreenPref) ?? new ScreenPref();
         Try(() => screenPref.ShowCostPage = true);
+        var visibility = App.Instance?.Services?.GetService(typeof(Backend.Settings.IProviderVisibilityStore))
+            as Backend.Settings.IProviderVisibilityStore;
+        if (visibility is not null)
+        {
+            foreach (var provider in Providers.DisplayProviders.All) Try(() => visibility.SetEnabled(provider, true));
+        }
+        Try(() => (App.Instance?.Services?.GetService(typeof(Backend.Cost.ICostStore))
+            as Backend.Cost.ICostStore)?.Refresh());
 
         // A wedged sweep must never leave the runner hanging for the job
         // timeout.
@@ -40,6 +50,30 @@ public static class SnapshotSweep
         // the next state mutation, or the shutter catches the next page.
         After(4.0, () =>
         {
+            // Exercise the 2.6 top-bar forecast with two deterministic quota
+            // samples. Settings/data live under the snapshot runner's
+            // isolated AGENTISLAND_DATA_DIR and never touch normal prefs.
+            Try(() =>
+            {
+                var usageStore = App.Instance?.Services?.GetService(typeof(Backend.Usage.IUsageStore))
+                    as Backend.Usage.IUsageStore;
+                var settings = App.Instance?.Services?.GetService(typeof(Backend.Settings.DepletionForecastSettingsStore))
+                    as Backend.Settings.DepletionForecastSettingsStore;
+                var tracker = App.Instance?.Services?.GetService(typeof(Backend.Usage.DepletionForecastTracker))
+                    as Backend.Usage.DepletionForecastTracker;
+                if (usageStore is not null && settings is not null && tracker is not null)
+                {
+                    var window = usageStore.Claude.FiveHour;
+                    var now = DateTimeOffset.Now;
+                    var remaining = Math.Clamp(1 - window.UsedPercent, 0.01, 0.99);
+                    var key = Backend.Usage.DepletionForecastSeries.Quota(TriggerTool.Claude, window);
+                    tracker.Observe(key, Math.Min(0.99, remaining + 0.10), now.AddMinutes(-5));
+                    tracker.Observe(key, remaining, now);
+                    settings.ThresholdPercent = 30;
+                    settings.WindowMinutes = 15;
+                    settings.Enabled = true;
+                }
+            });
             Try(() =>
             {
                 Report.ReportWindow.WritePng(Report.ReportWindow.Kind.Daily, At("report-daily.png"));
@@ -89,14 +123,20 @@ public static class SnapshotSweep
                                     var tools = new[]
                                     {
                                         TriggerTool.Claude, TriggerTool.Codex, TriggerTool.Antigravity,
-                                        TriggerTool.Grok, TriggerTool.Cursor,
+                                        TriggerTool.Grok, TriggerTool.Cursor, TriggerTool.DeepSeek,
                                     };
                                     var toolIndex = 0;
                                     void NextDialog()
                                     {
                                         if (toolIndex >= tools.Length)
                                         {
-                                            SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
+                                            Try(TranscriptWindow.ShowWindow);
+                                            After(1.0, () =>
+                                            {
+                                                RenderOpenWindow<TranscriptWindow>(At("transcripts.png"));
+                                                CloseOpenWindows<TranscriptWindow>();
+                                                SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
+                                            });
                                             return;
                                         }
                                         var tool = tools[toolIndex];
@@ -131,6 +171,45 @@ public static class SnapshotSweep
             });
             });
         });
+    }
+
+    private static void RenderApprovalCards(string dir)
+    {
+        var interactionRoot = Path.Combine(dir, "interaction-preview");
+        var channel = new Backend.Interaction.FileInteractionChannel(interactionRoot);
+        var coordinator = new Backend.Interaction.ApprovalCoordinator(channel);
+        var requests = new[]
+        {
+            new Core.Interaction.ApprovalRequest(
+                "snapshot-permission", TriggerTool.Claude, Core.Interaction.PromptKind.Permission,
+                "Bash", "Remove-Item ./build -Recurse", null, Array.Empty<Core.Interaction.PromptOption>(),
+                null, "snapshot", "snapshot", Environment.CurrentDirectory, DateTimeOffset.UtcNow,
+                Core.Interaction.CommandRiskLevel.Warn, "This command removes files"),
+            new Core.Interaction.ApprovalRequest(
+                "snapshot-question", TriggerTool.Claude, Core.Interaction.PromptKind.Question,
+                "AskUserQuestion", null, "Which queue should be used?",
+                new[] { new Core.Interaction.PromptOption("Existing queue", "Reuse the current queue") },
+                null, "snapshot", "snapshot", Environment.CurrentDirectory, DateTimeOffset.UtcNow,
+                Core.Interaction.CommandRiskLevel.None, null),
+            new Core.Interaction.ApprovalRequest(
+                "snapshot-plan", TriggerTool.Claude, Core.Interaction.PromptKind.Plan,
+                "ExitPlanMode", null, null, Array.Empty<Core.Interaction.PromptOption>(),
+                "# Plan\n\n1. Make the change\n2. Run the tests", "snapshot", "snapshot",
+                Environment.CurrentDirectory, DateTimeOffset.UtcNow,
+                Core.Interaction.CommandRiskLevel.None, null),
+        };
+        foreach (var request in requests)
+        {
+            channel.Publish(request);
+            coordinator.Refresh();
+            var card = new Interaction.ApprovalCard(coordinator) { Width = 430 };
+            card.Refresh();
+            card.Measure(new Size(430, 600));
+            card.Arrange(new Rect(0, 0, 430, card.DesiredSize.Height));
+            card.UpdateLayout();
+            RenderElement(card, Path.Combine(dir, $"approval-{request.Kind.ToString().ToLowerInvariant()}.png"));
+            channel.Clear(request.Id);
+        }
     }
 
     private static void After(double seconds, Action action)

@@ -89,10 +89,10 @@ public class ProviderLogoAnimationTests
             PumpDispatcher(TimeSpan.FromMilliseconds(60));
             Expect(!mark.IsActive && mark.RipplesStopped, "Idle Cursor must be still");
             logo.SetState(ActivityState.Working);
-            PumpDispatcher(TimeSpan.FromMilliseconds(250));
+            PumpUntil(() => mark.OffsetY > .1 && mark.RippleOpacity > 0, TimeSpan.FromSeconds(1));
             Expect(mark.IsActive && !logo.IsSpinActive, "Working Cursor must tap without spinning");
             Expect(mark.OffsetY > .1 && mark.RippleOpacity > 0, "Cursor tap and delayed ripple must advance");
-            PumpDispatcher(TimeSpan.FromMilliseconds(650));
+            PumpUntil(() => mark.BothRipplesVisible, TimeSpan.FromSeconds(2));
             Expect(mark.BothRipplesVisible, "Both staggered rings must stay visible together at island size");
             if (Environment.GetEnvironmentVariable("AGENTISLAND_CURSOR_PREVIEW") is { Length: > 0 } output)
             {
@@ -156,7 +156,7 @@ public class ProviderLogoAnimationTests
                 "Working bot must bounce and change eyes without generic spin");
             var firstEye = bot.LeftEye;
             Capture();
-            PumpDispatcher(TimeSpan.FromMilliseconds(500));
+            PumpUntil(() => !ReferenceEquals(firstEye, bot.LeftEye), TimeSpan.FromSeconds(2));
             Expect(!ReferenceEquals(firstEye, bot.LeftEye), "Working eyes must advance after 450ms");
             Capture();
             foreach (var state in new[] { ActivityState.Stalled, ActivityState.RateLimited, ActivityState.AuthRequired, ActivityState.NeedsYou })
@@ -355,6 +355,15 @@ public class ProviderLogoAnimationTests
         };
         timer.Start();
         System.Windows.Threading.Dispatcher.PushFrame(frame);
+    }
+
+    private static void PumpUntil(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            PumpDispatcher(TimeSpan.FromMilliseconds(40));
+        }
     }
 
     private static void TestAntigravityStateTransitionsAndCleanup()

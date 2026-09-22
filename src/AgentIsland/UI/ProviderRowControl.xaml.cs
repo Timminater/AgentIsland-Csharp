@@ -15,7 +15,6 @@ namespace AgentIsland.UI;
 public partial class ProviderRowControl : UserControl
 {
     public DisplayProvider Provider { get; }
-    public event Action<bool>? SlotRefusalChanged;
     public event Action? RefreshRequested;
     public event Action? ClaudePasteLoginRequested;
     public event Action? CodexSaveAccountRequested;
@@ -82,13 +81,9 @@ public partial class ProviderRowControl : UserControl
         SlotToggle.IsOn = _visibilityStore.IsEnabled(provider);
         SlotToggle.Toggled += enabled =>
         {
-            if (!_visibilityStore.SetEnabled(provider, enabled))
-            {
-                SlotToggle.IsOn = _visibilityStore.IsEnabled(provider);
-                SlotRefusalChanged?.Invoke(true);
-                return;
-            }
-            SlotRefusalChanged?.Invoke(false);
+            // No cap any more: any number of providers may be enabled, one of
+            // which is the active one rendered in the bar.
+            _visibilityStore.SetEnabled(provider, enabled);
             if (enabled) KickGuestRefresh(provider);
             RefreshRequested?.Invoke();
         };
@@ -358,6 +353,10 @@ public partial class ProviderRowControl : UserControl
         {
             parts.Add(L10n.TrFormat("{0} tokens today", Formatting.CompactTokens(today)));
         }
+
+        // The billing phase belongs on the row: switching the provider on is
+        // exactly when "is it cheap right now?" is asked.
+        parts.Add(DeepSeekPeakHoursText.Long(DateTimeOffset.Now));
         return string.Join(" · ", parts);
     }
 

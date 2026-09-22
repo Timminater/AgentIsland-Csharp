@@ -4,8 +4,8 @@
 
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20x64-0078D6?style=flat&logo=windows)](https://www.microsoft.com/windows)
-[![Tests](https://img.shields.io/badge/Tests-67%20Passing-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
-[![Memory Footprint](https://img.shields.io/badge/Working%20Set-~100MB%20(down%20from%20200MB+)-success?style=flat)](docs/performance.md)
+[![Tests](https://img.shields.io/badge/Tests-91%20Passing-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
+[![Performance](https://img.shields.io/badge/Performance-profiled%20locally-informational?style=flat)](docs/performance.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **AgentIsland for Windows** 是专为 Windows 平台打造的高性能、低开销 AI 编程 Agent 桌面灵动岛监控工具。常驻屏幕顶端，以流畅的 60fps 弹簧动效实时感知 Claude Code、OpenAI Codex、DeepSeek Harness、Google Antigravity、xAI Grok 及 Cursor 的会话状态、Token 消耗与剩余额度。
@@ -88,10 +88,10 @@ catalog.Register(new BuiltInAgentModule(
 
 作为一款需要 24/7 常驻后台的桌面监控工具，“低资源占用”是生命线。重构版针对 Windows 平台特性进行了底层调优：
 
-### 1. Win32 内核物理内存修剪（从 200MB+ 回落至 100MB 左右）
+### 1. Win32 内核物理内存修剪
 * **痛点**：原版 Windows 原型在开启 Codex 等大日志 Agent 或长期运行后，常驻物理工作集（Working Set）容易**飙升至 200MB 以上**。
 * **解决方案**：引入 `MemoryReclaimer` 异步防抖内存回收器。当用户关闭高负荷 Agent、清理历史缓存或应用进入空闲状态时，触发 Gen 2 + LOH 内存整理与压缩，并调用 Win32 内核 API `SetProcessWorkingSetSize` 将未引用的物理页面即刻退还给操作系统。
-* **效果**：空闲物理常驻内存从原版的 **200MB+** 显著回落并稳定在 **100MB 左右**。
+* **效果**：高负载任务结束后，可将未引用的工作集页面归还给 Windows。实际 WPF 工作集会随启用的 Provider、动画状态、日志规模、DPI 和 GPU 资源变化；请使用仓库中的测量脚本获取可复现的本机结果。
 
 ### 2. 逆向流切片与对象池复用（LOH 零分配）
 * **`ArrayPool<byte>` 内存池**：使用逆向流切片仅读取超长 JSONL 日志的尾部有效行，避免产生 >85KB 的大对象进入大对象堆（LOH）引起内存碎片。
@@ -124,7 +124,7 @@ catalog.Register(new BuiltInAgentModule(
 
 项目拥有完善的自动化测试套件，全面覆盖核心逻辑、并发安全与 UI 线程交互：
 
-* **67 项测试用例全部通过（ALL GREEN）**：其中 66 项常规测试，另有 1 项压力/资源测试；
+* **91 项测试用例全部通过（ALL GREEN）**：其中 90 项常规测试，另有 1 项压力/资源测试；
 * **测试覆盖范围**：涵盖领域计算、逆向流解析、断路器熔断机制、MVVM 交互、STA UI 线程渲染以及 1 年历史数据极限压测；
 * **数据沙箱隔离**：测试执行时自动隔离至独立临时目录，杜绝与本地实际运行数据互扰。
 
@@ -154,17 +154,17 @@ dotnet test AgentIsland.sln
 # 1. 还原依赖并编译解决方案
 dotnet build AgentIsland.sln
 
-# 2. 运行完整自动化测试套件（67 项：66 项常规 + 1 项压力/资源）
+# 2. 运行完整自动化测试套件（91 项：90 项常规 + 1 项压力/资源）
 dotnet test AgentIsland.sln
 
 # 3. 运行 1 年极限历史数据压测 UI
 .\Launch-StressUI.bat
 
 # 4. 本地发布自包含独立绿色可执行文件
-.\build.ps1 -Runtime win-x64 -Version 2.2.1
+.\build.ps1 -Runtime win-x64 -Version 2.6.0
 ```
 
-编译输出的便携绿色包将位于 `dist/AgentIsland-2.2.1-win-x64.zip`。
+编译输出的便携绿色包将位于 `dist/AgentIsland-2.6.0-win-x64.zip`。
 
 ---
 
@@ -178,7 +178,7 @@ AgentIsland-Csharp/
 │  ├─ AgentIsland.Windows/      # Windows 路径解析、winsqlite3.dll 驱动、内核内存修剪 API
 │  └─ AgentIsland/              # WPF 宿主、灵动岛悬浮窗、MVVM ViewModel、系统托盘与仪表盘
 ├─ tests/
-│  └─ AgentIsland.Tests/        # 67 项自动化测试（66 项常规 + 1 项压力/资源测试）
+│  └─ AgentIsland.Tests/        # 91 项自动化测试（90 项常规 + 1 项压力/资源测试）
 ├─ scripts/
 │  ├─ Launch-StressTestUI.ps1   # 1 年最坏场景沙箱压测启动脚本
 │  └─ Measure-ProcessResources.ps1 # 进程 CPU 与物理工作集实时采样脚本

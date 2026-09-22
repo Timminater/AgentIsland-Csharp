@@ -4,8 +4,8 @@
 
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20x64-0078D6?style=flat&logo=windows)](https://www.microsoft.com/windows)
-[![Tests](https://img.shields.io/badge/Tests-67%20Passing-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
-[![Memory Footprint](https://img.shields.io/badge/Working%20Set-~100MB%20(down%20from%20200MB+)-success?style=flat)](docs/performance.md)
+[![Tests](https://img.shields.io/badge/Tests-91%20Passing-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
+[![Performance](https://img.shields.io/badge/Performance-profiled%20locally-informational?style=flat)](docs/performance.md)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **AgentIsland for Windows** is a high-performance, ultra-low-footprint desktop Dynamic Island monitoring tool tailored for AI coding agents on Windows. Pinned to the top edge of your screen with fluid 60fps spring animations, it visualizes real-time session activity, token consumption, remaining quota, and turn status for Claude Code, OpenAI Codex, DeepSeek Harness, Google Antigravity, xAI Grok, and Cursor.
@@ -30,7 +30,7 @@ AgentIsland strictly adheres to a **Local-First** privacy commitment: session st
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **Claude Code** | ✅ Real-time | ✅ Full tracking | ✅ Official API | ✅ Ledger analysis | `%USERPROFILE%\.claude\projects` |
 | **OpenAI Codex** | ✅ Status sensor | ✅ Full tracking | ✅ Session metadata | ✅ Ledger analysis | `%USERPROFILE%\.codex\sessions` |
-| **DeepSeek Harness** | ✅ Multi-gateway | ✅ Event parser | ✅ Official Balance API | ✅ Cost calculation | `%USERPROFILE%\.dsh\sessions` (zstd streams) |
+| **DeepSeek Harness** | ✅ Multi-gateway | ✅ Event parser | ✅ Official Balance API + peak/off-peak bar | ✅ Cost calculation | `%USERPROFILE%\.dsh\sessions` (zstd streams) |
 | **Google Antigravity**| ✅ Turn capture | ✅ Token counting | ✅ Dedicated fetcher | ✅ Ledger analysis | `%USERPROFILE%\.gemini` (IDE & CLI transcripts) |
 | **xAI Grok** | ✅ Sensor hooked | ✅ Token counting | ✅ Usage fetch | ✅ Ledger analysis | `%USERPROFILE%\.grok` |
 | **Cursor IDE** | ✅ Sensor hooked | ✅ Aggregated tokens | ✅ Quota status | ✅ Ledger analysis | `%APPDATA%\Cursor\...\state.vscdb` (SQLite WAL) |
@@ -88,10 +88,10 @@ catalog.Register(new BuiltInAgentModule(
 
 As a desktop utility designed to run continuously in the background, minimizing system footprint is a paramount goal:
 
-### 1. Win32 Kernel Physical Memory Trimming (From 200MB+ Down to ~100MB)
+### 1. Win32 Kernel Physical Memory Trimming
 * **The Problem**: The original Windows prototype frequently bloated past **200MB+** of physical working set under long-running sessions or when parsing dense logs from agents like Codex.
 * **The Solution**: We introduced `MemoryReclaimer`, an asynchronous debounced memory collector. When a high-overhead provider is disabled, historical caches are purged, or the application enters an idle state, it triggers Gen 2 + LOH compaction, followed by a direct call to the Win32 kernel API `SetProcessWorkingSetSize` to immediately release unreferenced physical memory pages back to Windows.
-* **The Result**: Idle physical working set drops significantly from **200MB+** and remains firmly stabilized at **around 100MB**.
+* **The Result**: Unreferenced working-set pages can be returned after high-overhead work. Actual WPF working set varies with enabled providers, animation state, transcript volume, DPI and GPU resources; use the supplied measurement script for a reproducible local result.
 
 ### 2. Backward Stream Slicing & Memory Pooling (LOH Zero Allocation)
 * **`ArrayPool<byte>` Slicing**: Reads only trailing log lines via backward stream slicing, preventing allocations larger than 85KB from ever entering the Large Object Heap (LOH) and eliminating heap fragmentation.
@@ -124,7 +124,7 @@ This codebase strictly adheres to modern .NET design standards:
 
 The repository includes a comprehensive, deterministic test suite covering core domain logic, concurrency safety, and STA UI dispatcher interactions:
 
-* **67 Automated Tests Passing (ALL GREEN)** — 66 regular tests plus 1 stress/resource test;
+* **91 Automated Tests Passing (ALL GREEN)** — 90 regular tests plus 1 stress/resource test;
 * **Coverage Scope**: Domain calculators, reverse stream slicers, circuit breaker faults, MVVM ViewModels, STA UI rendering, and 1-year worst-case stress benchmarks;
 * **Sandboxed Test Isolation**: Tests execute in isolated temporary data directories, preventing interference with running application instances.
 
@@ -154,17 +154,17 @@ dotnet test AgentIsland.sln
 # 1. Restore and build solution
 dotnet build AgentIsland.sln
 
-# 2. Run full test suite (67 tests: 66 regular + 1 stress/resource)
+# 2. Run full test suite (91 tests: 90 regular + 1 stress/resource)
 dotnet test AgentIsland.sln
 
 # 3. Launch 1-Year Stress Test UI
 .\Launch-StressUI.bat
 
 # 4. Package self-contained release executable
-.\build.ps1 -Runtime win-x64 -Version 2.2.1
+.\build.ps1 -Runtime win-x64 -Version 2.6.0
 ```
 
-The compiled release artifact will be output to `dist/AgentIsland-2.2.1-win-x64.zip`.
+The compiled release artifact will be output to `dist/AgentIsland-2.6.0-win-x64.zip`.
 
 ---
 
@@ -178,7 +178,7 @@ AgentIsland-Csharp/
 │  ├─ AgentIsland.Windows/      # Windows path resolution, winsqlite3 driver, kernel memory APIs
 │  └─ AgentIsland/              # WPF presentation host, IslandWindow, ViewModels, dashboard
 ├─ tests/
-│  └─ AgentIsland.Tests/        # 67 automated tests (66 regular + 1 stress/resource test)
+│  └─ AgentIsland.Tests/        # 91 automated tests (90 regular + 1 stress/resource test)
 ├─ scripts/
 │  ├─ Launch-StressTestUI.ps1   # 1-Year worst-case stress launcher script
 │  └─ Measure-ProcessResources.ps1 # Process CPU and working set profiling script

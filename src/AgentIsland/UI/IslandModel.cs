@@ -112,29 +112,45 @@ public sealed class IslandModel : IIslandModel
         }
     }
 
-    /// The lone visible provider, or null with both (or neither) shown.
-    /// A solo bar keeps the full symmetric width and SPLITS its flanks —
-    /// logo on the provider's side, usage number on the other (macOS
-    /// 9ee4219) — instead of folding the empty half away.
-    public TriggerTool? SoloProvider
-    {
-        get
-        {
-            if (_visibilityStore == null) return null;
-            var slots = _visibilityStore.Slots;
-            return slots.Count == 1 ? slots[0].ToTriggerTool() : null;
-        }
-    }
+    /// The single active provider, or null when nothing is enabled/shown.
+    /// The bar always renders exactly one provider now (the hover switcher
+    /// reaches the rest); a solo bar keeps the full symmetric width and
+    /// SPLITS its flanks — logo on the provider's side, usage number on the
+    /// other (macOS 9ee4219) — instead of folding the empty half away.
+    public TriggerTool? SoloProvider =>
+        _visibilityStore?.ActiveProvider is { } active ? active.ToTriggerTool() : null;
 
     /// Standard wide notch space (200pt) used during normal/hover/active state.
     public const double StandardNotchWidth = 200;
     /// Minimal gap (16pt) used when idle-collapsed after 30s of inactivity.
     public const double CompactCenterGap = 16;
 
+    /// Centre gap the hover switcher needs: one 32px tile per enabled+shown
+    /// provider. Zero when there is nothing to switch between, so the classic
+    /// geometry is untouched for a single provider.
+    private double SwitcherGap
+    {
+        get
+        {
+            if (_visibilityStore is null) return 0;
+            var count = 0;
+            foreach (var provider in _visibilityStore.Enabled)
+            {
+                if (_visibilityStore.IsShown(provider)) count++;
+            }
+            return count > 1 ? count * 32 : 0;
+        }
+    }
+
     public double NotchWidth =>
         (_positionStore?.Placement == IslandPlacement.Floating)
-            ? 64
-            : (_spacingMode == IslandSpacingMode.CompactStyle ? 100 : StandardNotchWidth);
+            ? Math.Max(64, SwitcherGap)
+            // The Peek bar must be wide enough for the switcher even in the
+            // (Windows-forced) wide layout, so grow past the standard gap if
+            // an unusual number of providers is enabled.
+            : Math.Max(
+                _spacingMode == IslandSpacingMode.CompactStyle ? 100 : StandardNotchWidth,
+                SwitcherGap);
 
     public Size Size => _state switch
     {

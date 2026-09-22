@@ -162,6 +162,9 @@ public sealed class UsageStore : IUsageStore
     public AppUsage Usage(DisplayProvider provider) =>
         _usages.TryGetValue(provider, out var u) ? u : (provider == DisplayProvider.Claude ? _claude : provider == DisplayProvider.Codex ? _codex : AppUsage.Empty);
 
+    public DateTimeOffset? LastUpdatedFor(DisplayProvider provider) =>
+        _providerUpdatedAt.TryGetValue(provider, out var at) ? at : null;
+
     public AppUsage Claude { get => _claude; private set { _claude = value; _usages[DisplayProvider.Claude] = value; Raise(nameof(Claude)); Raise(nameof(Usage)); } }
     public AppUsage Codex { get => _codex; private set { _codex = value; _usages[DisplayProvider.Codex] = value; Raise(nameof(Codex)); Raise(nameof(Usage)); } }
     public DateTimeOffset? LastUpdated { get => _lastUpdated; private set { _lastUpdated = value; Raise(nameof(LastUpdated)); } }

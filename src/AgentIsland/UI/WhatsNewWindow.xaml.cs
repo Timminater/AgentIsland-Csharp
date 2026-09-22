@@ -24,6 +24,18 @@ public static class WhatsNewGate
     /// (owner call, 1.7.2: every user walks through the release card once).
     public static void MaybeShow()
     {
+        if (AppEnvironment.Current != AppMode.Normal) return;
+        if (string.Equals(Preferences.Get<string?>(SeenKey), CurrentVersion, StringComparison.Ordinal)) return;
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1.2),
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            WhatsNewWindow.Open();
+        };
+        timer.Start();
     }
 
     public static void MarkSeen() => Preferences.Set(SeenKey, CurrentVersion);
@@ -35,44 +47,43 @@ public sealed partial class WhatsNewWindow : Window
         string? ImageName, string Title, string Body,
         bool IsClosing = false, bool BrandHero = false);
 
-    /// 2.1.2 pages — the macOS set with the two platform-specific pages
-    /// speaking Windows: the terminal page describes the live-window jump
-    /// this port does, and the tones page names the Windows alarm library.
+    /// Current release pages. Keep copy capability-based instead of tying it
+    /// to an obsolete provider count or another operating system.
     private static Page[] Pages => new[]
     {
-        new Page("whatsnew-overview", "At a glance",
-            "The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use"),
-        new Page("whatsnew-antigravity", "Antigravity arrives",
-            "Google retired Gemini Code Assist for individuals, so Antigravity takes the slot: live session state, weekly quota read from its own local service, and one click back to the exact conversation"),
+        new Page(null, "At a glance",
+            "Six providers share one island, with one active provider in the top bar and every enabled provider available from the switcher", BrandHero: true),
+        new Page(null, "Approvals on the island",
+            "Answer Claude Code permissions, questions and plan reviews without losing the context of the active session", BrandHero: true),
+        new Page(null, "Know when usage runs out",
+            "Below your chosen remaining-quota threshold, the top bar can estimate time to empty from recent usage — and automatically go quiet during pauses", BrandHero: true),
         new Page("whatsnew-terminal", "Back to your terminal",
             "An alarm click lands in the session's live window — Windows Terminal, a console, or an IDE pane. A fresh terminal opens only when nothing is running"),
         new Page("whatsnew-tones", "Windows alarm tones",
             "Chimes, Xylophone, Chords — the alarm rings with Windows' own tones, played straight from the system's alarm library. Chimes is the new default"),
-        new Page("whatsnew-cost", "Cost across all five",
-            "Grok reports its own dollars, Cursor counts its tokens — cost and reports now cover every agent, read locally, and say so honestly where a provider publishes less"),
+        new Page(null, "Cost across all providers",
+            "Local usage records feed costs and reports for Claude, Codex, Antigravity, Grok, Cursor and DeepSeek", BrandHero: true),
         new Page("whatsnew-start", "Get started",
             "Welcome back to Agent Island", IsClosing: true),
     };
 
-    /// The global product tour (指南) — the whole product, not one release.
-    /// Screenshots are the macOS captures (owner call, 2026-08-09: 用 Mac
-    /// 的真机截屏，没有任何关系); the features they show are the same five.
+    /// The global product tour — the whole current Windows product.
     private static Page[] GuidePages => new[]
     {
         new Page(null, "Live status and quota, together",
-            "Five agents on one island — each read from the records it already writes on your Mac",
+            "Six providers on one island — each read from the local records it already writes on this computer",
             BrandHero: true),
-        new Page("guide-status", "Monitor",
-            "All five agents carry live session state — Claude, Codex, Grok, Antigravity, and Cursor. Spinning means working, a bell means it's your turn, and steady red means it needs you"),
-        new Page("guide-usage", "Usage",
-            "Claude, Codex, Antigravity, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"),
-        new Page("guide-cost", "Cost & history",
-            "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine"),
-        new Page("guide-cards", "Report cards",
-            "One click renders a shareable battle card — copy it or send it to your phone, and the arrows flip back to any past week or month"),
-        new Page("guide-personalize", "Personalization",
+        new Page(null, "Monitor",
+            "Enabled providers carry live session state where their local tools expose it. Spinning means working, a bell means it's your turn, and steady red means it needs you", BrandHero: true),
+        new Page(null, "Usage",
+            "Enable any number of providers. One is active in the top bar; use the switcher to move between the others", BrandHero: true),
+        new Page(null, "Cost & history",
+            "Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine", BrandHero: true),
+        new Page(null, "Report cards",
+            "One click renders a shareable battle card — copy it or send it to your phone, and the arrows flip back to any past week or month", BrandHero: true),
+        new Page(null, "Personalization",
             "Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings",
-            IsClosing: true),
+            IsClosing: true, BrandHero: true),
     };
 
     private static WhatsNewWindow? _open;

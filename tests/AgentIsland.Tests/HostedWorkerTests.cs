@@ -170,7 +170,7 @@ public class HostedWorkerTests
         public void Start() => StartCalled = true;
         public void Stop() => StopCalled = true;
         public void ScanNow() => ScanNowCalled = true;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
 
@@ -197,7 +197,7 @@ public class HostedWorkerTests
         public void ClearClaudeReauthFailure() { }
         public void ReauthenticateClaude() { }
         public bool ReauthenticateCodex() => true;
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     private sealed class MockCostStore : ICostStore
@@ -216,7 +216,7 @@ public class HostedWorkerTests
             Refresh();
             return Task.CompletedTask;
         }
-        public event PropertyChangedEventHandler? PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
 

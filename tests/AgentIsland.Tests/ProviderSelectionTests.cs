@@ -2,10 +2,9 @@ using AgentIsland.UI.Providers;
 
 namespace AgentIsland.Tests;
 
-/// Pins the island's two-slot selection rules. The silhouette geometry is two
-/// tabs and two pills, so a third pick must be REFUSED rather than silently
-/// evicting an earlier one, and a persisted list must survive an unknown or
-/// duplicated entry without ever handing back more than two providers.
+/// Pins the island's provider selection rules. The bar renders ONE active
+/// provider, so any number of providers may be enabled; a persisted list must
+/// survive an unknown or duplicated entry while preserving the user's order.
 public class ProviderSelectionTests
 {
     [Fact]
@@ -17,12 +16,12 @@ public class ProviderSelectionTests
         {
             ("sanitize keeps user order", TestSanitizeOrders),
             ("sanitize drops unknown and duplicate entries", TestSanitizeCleans),
-            ("sanitize caps at two", TestSanitizeCaps),
+            ("sanitize keeps every enabled provider (no cap)", TestSanitizeKeepsAll),
             ("sanitize of null is full/empty", TestSanitizeNull),
             ("toggle on adds in user order", TestToggleAdds),
             ("toggle off removes", TestToggleRemoves),
-            ("third pick is refused, nothing evicted", TestThirdPickRefused),
-            ("toggle off at the cap always succeeds", TestToggleOffAtCap),
+            ("a third pick is added, nothing evicted", TestThirdPickAdds),
+            ("toggle off with several on succeeds", TestToggleOffWithSeveral),
             ("migration carries the pre-slot pair over", TestMigration),
             ("all six agents parse and roundtrip correctly", TestAllSixAgentsRoundtrip),
             ("custom provider pairings sanitize and persist correctly", TestCustomProviderPairings),
@@ -55,13 +54,13 @@ public class ProviderSelectionTests
         Expect(Spell(result) == "grok,claude,codex,antigravity,cursor,deepseek", $"unknown/duplicate entries survived or missing omitted: {Spell(result)}");
     }
 
-    private static void TestSanitizeCaps()
+    private static void TestSanitizeKeepsAll()
     {
         var order = ProviderSelection.SanitizeOrder(new[] { "cursor", "grok", "antigravity", "codex", "claude" });
         var enabled = ProviderSelection.SanitizeEnabled(new[] { "cursor", "grok", "antigravity", "codex", "claude" }, order);
-        Expect(enabled.Count == ProviderSelection.MaxEnabled,
-            $"cap of {ProviderSelection.MaxEnabled} not enforced: {Spell(enabled)}");
-        Expect(Spell(enabled) == "cursor,grok", $"cap kept the wrong two: {Spell(enabled)}");
+        Expect(enabled.Count == 5, $"the old two-slot cap must be gone: {Spell(enabled)}");
+        Expect(Spell(enabled) == "cursor,grok,antigravity,codex,claude",
+            $"user order not preserved: {Spell(enabled)}");
     }
 
     private static void TestSanitizeNull()
@@ -88,23 +87,23 @@ public class ProviderSelectionTests
         Expect(Spell(next) == "grok", $"wrong provider removed: {Spell(next)}");
     }
 
-    private static void TestThirdPickRefused()
+    private static void TestThirdPickAdds()
     {
         var current = new List<DisplayProvider> { DisplayProvider.Claude, DisplayProvider.Codex };
         var order = new List<DisplayProvider> { DisplayProvider.Claude, DisplayProvider.Codex, DisplayProvider.Grok };
-        Expect(!ProviderSelection.TryToggle(current, DisplayProvider.Grok, order, out var next),
-            "a third pick must be refused");
-        Expect(Spell(next) == "claude,codex",
-            $"a refused toggle must leave the selection untouched: {Spell(next)}");
+        Expect(ProviderSelection.TryToggle(current, DisplayProvider.Grok, order, out var next),
+            "a third pick must be accepted now that the cap is gone");
+        Expect(Spell(next) == "claude,codex,grok",
+            $"a third pick must be added in user order: {Spell(next)}");
     }
 
-    private static void TestToggleOffAtCap()
+    private static void TestToggleOffWithSeveral()
     {
         var current = new List<DisplayProvider> { DisplayProvider.Antigravity, DisplayProvider.Cursor };
         var order = new List<DisplayProvider> { DisplayProvider.Antigravity, DisplayProvider.Cursor, DisplayProvider.Codex };
         Expect(ProviderSelection.TryToggle(current, DisplayProvider.Cursor, order, out var next),
-            "turning one off while full must succeed");
-        Expect(Spell(next) == "antigravity", $"wrong result at the cap: {Spell(next)}");
+            "turning one off while several are on must succeed");
+        Expect(Spell(next) == "antigravity", $"wrong result: {Spell(next)}");
     }
 
     private static void TestMigration()

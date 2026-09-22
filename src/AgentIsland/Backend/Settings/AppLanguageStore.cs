@@ -18,12 +18,14 @@ public static class AppLanguageStore
         {
             case "zh": return L10n.Language.SimplifiedChinese;
             case "en": return L10n.Language.English;
+            case "nl": return L10n.Language.Dutch;
         }
         var raw = Preferences.Get<string?>(Key) ?? "";
         return raw switch
         {
             "en" => L10n.Language.English,
             "zh-Hans" => L10n.Language.SimplifiedChinese,
+            "nl" => L10n.Language.Dutch,
             _ => L10n.Language.Auto,
         };
     }
@@ -34,6 +36,7 @@ public static class AppLanguageStore
         {
             L10n.Language.English => "en",
             L10n.Language.SimplifiedChinese => "zh-Hans",
+            L10n.Language.Dutch => "nl",
             _ => "",
         });
     }

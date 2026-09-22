@@ -100,9 +100,18 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<CostStylePreferenceStore>();
                 services.AddSingleton<TokenCountModeStore>();
                 services.AddSingleton<AlertThresholdStore>();
+                services.AddSingleton<DepletionForecastSettingsStore>();
+                services.AddSingleton<DepletionForecastTracker>();
                 services.AddSingleton<RefreshIntervalStore>();
                 services.AddSingleton<AgentReminderStore>();
                 services.AddSingleton<QuotaAlarmStore>();
+
+                // Approval pipeline (A1–A5): the spool channel, the coordinator
+                // that watches it, and the Claude Code hook installer.
+                services.AddSingleton<AgentIsland.Backend.Interaction.FileInteractionChannel>();
+                services.AddSingleton<AgentIsland.Backend.Interaction.ApprovalCoordinator>();
+                services.AddSingleton<AgentIsland.Backend.Interaction.IApprovalCoordinator>(
+                    sp => sp.GetRequiredService<AgentIsland.Backend.Interaction.ApprovalCoordinator>());
 
                 // Domain & Usage Stores
                 services.AddSingleton<ProviderVisibilityStore>();
@@ -232,7 +241,22 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (!ClaimSingleInstance())
+
+        // Agent-facing hook mode: Claude Code spawns this same exe to ask a
+        // permission/question/plan. Run headless, print the decision, exit —
+        // and do it BEFORE the single-instance gate, because the island is
+        // already running and would otherwise turn the hook away.
+        if (AgentIsland.Interaction.HookCommand.IsHookInvocation(e.Args))
+        {
+            var hookExit = AgentIsland.Interaction.HookCommand.Run(e.Args);
+            Shutdown(hookExit);
+            return;
+        }
+
+        // Demo/snapshot runs use isolated data and must be able to render next
+        // to the user's normal instance (including on a CI desktop). Only the
+        // real app participates in the single-instance contract.
+        if (AppEnvironment.Current == AppMode.Normal && !ClaimSingleInstance())
         {
             Shutdown();
             return;
@@ -249,7 +273,17 @@ public partial class App : System.Windows.Application
             Host.StartAsync().GetAwaiter().GetResult();
             Http.Configure(Services.GetRequiredService<System.Net.Http.IHttpClientFactory>());
         }
-        catch { }
+        catch (Exception error)
+        {
+            LogCrash(error, "Startup");
+            System.Windows.MessageBox.Show(
+                AgentIsland.UI.Localization.L10n.Tr("Agent Island could not start its background services. See crash.log for details."),
+                "Agent Island",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
 
         var activity = Services.GetRequiredService<ActivityMonitor>();
         var usage = Services.GetRequiredService<UsageStore>();
@@ -271,6 +305,7 @@ public partial class App : System.Windows.Application
             showIsland: () => WindowService.ShowIsland(),
             toggleIsland: () => WindowService.ToggleTransparentMode(),
             openSettings: () => WindowService.OpenSettings(),
+            openTranscripts: () => UI.TranscriptWindow.ShowWindow(),
             exit: () =>
             {
                 _tray?.Dispose();
@@ -293,8 +328,10 @@ public partial class App : System.Windows.Application
         exhaustionAlarm.Start();
         AgentIsland.Backend.Updates.UpdateInstaller.CleanupAtStartup();
         alertEngine.Start();
+        Services.GetRequiredService<AgentIsland.Backend.Interaction.IApprovalCoordinator>().Start();
 
         // Release card: once per version, shortly after the island lands
+        WhatsNewGate.MaybeShow();
 
         // Weekly report moment: once per ISO week, surface the card shortly
         // after launch. Suppressed for demo/debug/snapshot runs.
@@ -436,7 +473,8 @@ public partial class App : System.Windows.Application
         _tray = new TrayIcon(
             showIsland: () => _island?.PopUp(),
             toggleIsland: () => _island?.ToggleTransparentMode(),
-            openSettings: UI.SettingsWindow.Open,
+            openSettings: () => UI.SettingsWindow.Open(),
+            openTranscripts: () => UI.TranscriptWindow.ShowWindow(),
             exit: () =>
             {
                 _tray?.Dispose();
@@ -452,6 +490,8 @@ public partial class App : System.Windows.Application
         {
             (Services.GetService(typeof(UsageStore)) as UsageStore)?.StopAutoRefresh();
             (Services.GetService(typeof(CostStore)) as CostStore)?.StopAutoRefresh();
+            (Services.GetService(typeof(AgentIsland.Backend.Interaction.ApprovalCoordinator))
+                as AgentIsland.Backend.Interaction.ApprovalCoordinator)?.Stop();
             Host.StopAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
             Host.Dispose();
         }

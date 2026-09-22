@@ -76,7 +76,10 @@ internal sealed class CursorTapMark : Grid
         AnimateTap(_scale, ScaleTransform.ScaleYProperty, [1, .93, 1.03, 1, 1]);
         for (var i = 0; i < _ripples.Length; i++)
         {
-            var delay = TimeSpan.FromSeconds(i == 0 ? .15 : .8);
+            // Leave enough timing margin for WPF's render scheduler: the old
+            // .15/.8 split made both the animation and its test miss frames on
+            // busy machines even though the visual eventually caught up.
+            var delay = TimeSpan.FromSeconds(i == 0 ? .05 : .55);
             var scale = (ScaleTransform)_ripples[i].RenderTransform;
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, RippleAnimation(.65, 2.3, delay));
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, RippleAnimation(.65, 2.3, delay));

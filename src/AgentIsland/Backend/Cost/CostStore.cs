@@ -429,21 +429,34 @@ public sealed class CostStore : ICostStore
         if (_activeProviders.Contains(DisplayProvider.Claude))
         {
             SetSummary(DisplayProvider.Claude,
-                DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000, seed: 7));
+                DemoSummary(now, 146.61, 211_240_000, 21_120_000, 1_510.80, 2_170_000_000, 217_100_000, "claude-sonnet-4-6", 7));
         }
         if (_activeProviders.Contains(DisplayProvider.Codex))
         {
             SetSummary(DisplayProvider.Codex,
-                DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000, seed: 21));
+                DemoSummary(now, 136.50, 164_120_000, 32_820_000, 1_342.60, 1_610_000_000, 322_860_000, "gpt-5.4", 21));
         }
+        AddDemo(DisplayProvider.Antigravity, 82.20, 98_000_000, 19_000_000, 810.0, 940_000_000, 188_000_000, "gemini-2.5-pro", 31);
+        AddDemo(DisplayProvider.Grok, 63.40, 76_000_000, 15_000_000, 620.0, 730_000_000, 146_000_000, "grok-code-fast-1", 41);
+        AddDemo(DisplayProvider.Cursor, 48.10, 61_000_000, 12_000_000, 470.0, 590_000_000, 118_000_000, "composer-1", 51);
+        AddDemo(DisplayProvider.DeepSeek, 29.80, 44_000_000, 9_000_000, 295.0, 420_000_000, 84_000_000, "deepseek-v3.2", 61);
         LastUpdated = _activeProviders.Count > 0 ? now : null;
+
+        void AddDemo(DisplayProvider provider, double todayDollars, long todayTokens, long todayBillable,
+            double monthDollars, long monthTokens, long monthBillable, string model, int seed)
+        {
+            if (_activeProviders.Contains(provider))
+                SetSummary(provider, DemoSummary(now, todayDollars, todayTokens, todayBillable,
+                    monthDollars, monthTokens, monthBillable, model, seed));
+        }
     }
 
     private static ProviderCostSummary DemoSummary(
         DateTimeOffset now,
         double todayDollars, long todayTokens, long todayBillable,
         double monthDollars, long monthTokens, long monthBillable,
-        int seed = 7)
+        string model,
+        int seed)
     {
         var hourly = new double[24];
         var progress = Math.Max(1, now.Hour);
@@ -477,9 +490,9 @@ public sealed class CostStore : ICostStore
             todayDollars, todayTokens, todayBillable,
             monthDollars, monthTokens, monthBillable,
             hourly, dailySeries,
-            new[] { new ModelSpend("claude-fable-5", todayTokens / 3, todayBillable / 3, todayDollars / 3) },
-            new[] { new ModelSpend("claude-fable-5", todayTokens, todayBillable, todayDollars) },
-            new[] { new ModelSpend("claude-fable-5", monthTokens, monthBillable, monthDollars) },
+            new[] { new ModelSpend(model, todayTokens / 3, todayBillable / 3, todayDollars / 3) },
+            new[] { new ModelSpend(model, todayTokens, todayBillable, todayDollars) },
+            new[] { new ModelSpend(model, monthTokens, monthBillable, monthDollars) },
             history,
             Array.Empty<string>());
     }

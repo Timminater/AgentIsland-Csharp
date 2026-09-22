@@ -9,7 +9,8 @@ namespace AgentIsland.Backend.Updates;
 /// release carries a Windows zip for this machine's architecture — enough to
 /// download it without a second API call.
 public sealed record UpdateInfo(
-    Version Version, string Tag, string? AssetName, string? AssetUrl, long AssetSize);
+    Version Version, string Tag, string? AssetName, string? AssetUrl, long AssetSize,
+    string? Sha256Url);
 
 /// Release-feed updater for the Windows port (no Sparkle here): polls the
 /// GitHub latest-release endpoint, compares the tag against the running
@@ -24,9 +25,9 @@ public sealed class UpdateChecker : IUpdateChecker
     public UpdateChecker() { }
 
     private const string LatestApi =
-        "https://api.github.com/repos/newton5555/AgentIsland-Csharp/releases/latest";
+        "https://api.github.com/repos/Timminater/AgentIsland-Csharp/releases/latest";
     internal const string ReleasesPage =
-        "https://github.com/newton5555/AgentIsland-Csharp/releases/latest";
+        "https://github.com/Timminater/AgentIsland-Csharp/releases/latest";
     private const string AutoCheckKey = "AgentIsland.autoCheckUpdates";
     private const string DismissedKey = "AgentIsland.dismissedUpdateVersion";
     private const string DismissedAtKey = "AgentIsland.dismissedUpdateAt";
@@ -252,7 +253,7 @@ public sealed class UpdateChecker : IUpdateChecker
             if (string.IsNullOrEmpty(tag)) return null;
             if (ParseTag(tag!) is not { } version) return null;
 
-            string? assetName = null, assetUrl = null;
+            string? assetName = null, assetUrl = null, sha256Url = null;
             long assetSize = 0;
             if (root.TryGetProperty("assets", out var assets) &&
                 assets.ValueKind == JsonValueKind.Array)
@@ -270,10 +271,22 @@ public sealed class UpdateChecker : IUpdateChecker
                     {
                         assetSize = size.GetInt64();
                     }
-                    break;
+                }
+                if (assetName is not null)
+                {
+                    foreach (var asset in assets.EnumerateArray())
+                    {
+                        if (!string.Equals(Jsonl.GetString(asset, "name"), assetName + ".sha256",
+                                StringComparison.OrdinalIgnoreCase)) continue;
+                        sha256Url = Jsonl.GetString(asset, "browser_download_url");
+                        break;
+                    }
                 }
             }
-            return new UpdateInfo(version, tag!, assetName, assetUrl, assetSize);
+            // Automatic replacement is offered only when the release also
+            // publishes an independently downloaded SHA-256 digest.
+            if (sha256Url is null) assetUrl = null;
+            return new UpdateInfo(version, tag!, assetName, assetUrl, assetSize, sha256Url);
         }
         catch
         {

@@ -5,6 +5,8 @@ using System.Windows.Media;
 using AgentIsland.Core;
 using AgentIsland.UI.Theme;
 using AgentIsland.Core.Usage;
+using AgentIsland.Backend.Usage;
+using AgentIsland.UI.Localization;
 
 namespace AgentIsland.UI;
 
@@ -38,9 +40,14 @@ public sealed class NotchPeekPill : TextBlock
 
     public bool Mirrored { get; set; }
 
-    public void Update(WindowUsage usage, bool loading, AgentIsland.Backend.Settings.AlertSeverity severity = AgentIsland.Backend.Settings.AlertSeverity.None)
+    public void Update(
+        WindowUsage usage,
+        bool loading,
+        AgentIsland.Backend.Settings.AlertSeverity severity = AgentIsland.Backend.Settings.AlertSeverity.None,
+        DepletionForecast? forecast = null)
     {
         Inlines.Clear();
+        ToolTip = null;
         var tint = severity switch
         {
             AgentIsland.Backend.Settings.AlertSeverity.Critical => IslandColors.AlertRed,
@@ -63,8 +70,11 @@ public sealed class NotchPeekPill : TextBlock
         // logo — exactly like the macOS bar.
         var percentText = $"{Math.Round(_displayModeStore.DisplayValue(usage.UsedPercent))}%";
         var now = DateTimeOffset.Now;
-        var countdown = usage.ResetAt is { } resetAt && resetAt > now
+        var resetCountdown = usage.ResetAt is { } resetAt && resetAt > now
             ? CompactCountdown(resetAt - now)
+            : null;
+        var depletionCountdown = forecast is not null
+            ? "≈" + CompactCountdown(forecast.Remaining)
             : null;
         var mirrored = Mirrored;
         // The no-countdown placeholder names the window's REAL period.
@@ -72,7 +82,8 @@ public sealed class NotchPeekPill : TextBlock
 
         if (mirrored)
         {
-            if (countdown is not null) Inlines.Add(Dim(countdown + " · ", 0.70));
+            if (depletionCountdown is not null) Inlines.Add(ForecastRun(depletionCountdown + " · "));
+            else if (resetCountdown is not null) Inlines.Add(Dim(resetCountdown + " · ", 0.70));
             else Inlines.Add(Dim(periodTag + " · ", 0.40));
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
             if (severity != AgentIsland.Backend.Settings.AlertSeverity.None)
@@ -87,9 +98,12 @@ public sealed class NotchPeekPill : TextBlock
                 Inlines.Add(new Run("⚠ ") { Foreground = IslandColors.Brush(tint) });
             }
             Inlines.Add(new Run(percentText) { Foreground = IslandColors.Brush(tint) });
-            if (countdown is not null) Inlines.Add(Dim(" · " + countdown, 0.70));
+            if (depletionCountdown is not null) Inlines.Add(ForecastRun(" · " + depletionCountdown));
+            else if (resetCountdown is not null) Inlines.Add(Dim(" · " + resetCountdown, 0.70));
             else Inlines.Add(Dim(" · " + periodTag, 0.40));
         }
+
+        ToolTip = forecast is null ? null : ForecastTooltip(forecast);
     }
 
     /// Renders an account balance for providers such as DeepSeek that do not
@@ -97,37 +111,81 @@ public sealed class NotchPeekPill : TextBlock
     /// occupy the same visual slot: a fresh balance is shown as-is, a first
     /// request shows an ellipsis, and an unavailable/error state keeps a
     /// visible marker instead of collapsing to an empty flank.
-    public void UpdateBalance(string? balanceText, bool loading, bool unavailable = false)
+    ///
+    /// DeepSeek also bills off-peak at half price, so the balance carries the
+    /// live billing phase as a tinted dot in front of the amount. The pill's
+    /// slot is only ~104 DIP wide: naming the phase in words here overflowed
+    /// it and clipped the amount down to its cents, so the words live in the
+    /// tooltip and on the island's expanded panel instead.
+    public void UpdateBalance(
+        string? balanceText,
+        bool loading,
+        bool unavailable = false,
+        DepletionForecast? forecast = null)
     {
         Inlines.Clear();
+        ToolTip = null;
 
         var tint = unavailable ? IslandColors.AlertRed : IslandColors.For(_tool);
+        var hasAmount = !string.IsNullOrWhiteSpace(balanceText);
+        var isDeepSeek = _tool == TriggerTool.DeepSeek;
+        // The dot only rides an actual amount: a phase marker beside a loading
+        // ellipsis is noise, and it is the amount that has to fit the slot.
+        // When the estimate is visible it takes the phase dot's scarce slot;
+        // peak/off-peak remains fully named in the tooltip.
+        var phase = isDeepSeek && hasAmount && forecast is null ? PhaseMark() : (Color?)null;
+        var forecastText = forecast is null ? null : "≈" + CompactCountdown(forecast.Remaining);
+
         if (Mirrored)
         {
-            if (string.IsNullOrWhiteSpace(balanceText))
+            if (forecastText is not null) Inlines.Add(ForecastRun(forecastText + " · "));
+            if (hasAmount)
             {
-                Inlines.Add(Dim(loading ? "…" : "—", loading ? 0.55 : 0.40));
+                Inlines.Add(new Run(balanceText!) { Foreground = IslandColors.Brush(tint) });
             }
             else
             {
-                Inlines.Add(new Run(balanceText) { Foreground = IslandColors.Brush(tint) });
+                Inlines.Add(Dim(loading ? "…" : "—", loading ? 0.55 : 0.40));
             }
             if (unavailable)
             {
                 Inlines.Add(new Run(" ⚠") { Foreground = IslandColors.Brush(tint) });
             }
+            if (phase is { } leftPhase)
+            {
+                Inlines.Add(new Run(" ●") { Foreground = IslandColors.Brush(leftPhase) });
+            }
         }
         else
         {
+            if (phase is { } rightPhase)
+            {
+                Inlines.Add(new Run("● ") { Foreground = IslandColors.Brush(rightPhase) });
+            }
             if (unavailable)
             {
                 Inlines.Add(new Run("⚠ ") { Foreground = IslandColors.Brush(tint) });
             }
-            Inlines.Add(string.IsNullOrWhiteSpace(balanceText)
-                ? Dim(loading ? "…" : "—", loading ? 0.55 : 0.40)
-                : new Run(balanceText) { Foreground = IslandColors.Brush(tint) });
+            Inlines.Add(hasAmount
+                ? new Run(balanceText!) { Foreground = IslandColors.Brush(tint) }
+                : Dim(loading ? "…" : "—", loading ? 0.55 : 0.40));
+            if (forecastText is not null) Inlines.Add(ForecastRun(" · " + forecastText));
         }
+
+        if (isDeepSeek)
+        {
+            var phaseTip = DeepSeekPeakHoursText.Tag(DateTimeOffset.Now)
+                + " · " + DeepSeekPeakHoursText.Long(DateTimeOffset.Now);
+            ToolTip = forecast is null ? phaseTip : phaseTip + "\n" + ForecastTooltip(forecast);
+        }
+        else ToolTip = forecast is null ? null : ForecastTooltip(forecast);
     }
+
+    /// Live billing-phase colour: teal while off-peak, amber while peak.
+    private static Color PhaseMark() =>
+        AgentIsland.Providers.Usage.DeepSeek.DeepSeekPeakHours.IsPeak(DateTimeOffset.Now)
+            ? IslandColors.AlertAmber
+            : IslandColors.LiveTeal;
 
     public static string CompactCountdown(TimeSpan remaining)
     {
@@ -143,4 +201,15 @@ public sealed class NotchPeekPill : TextBlock
     {
         Foreground = IslandColors.Brush(IslandColors.White(opacity)),
     };
+
+    private static Run ForecastRun(string text) => new(text)
+    {
+        Foreground = IslandColors.Brush(IslandColors.AlertAmber),
+    };
+
+    private static string ForecastTooltip(DepletionForecast forecast) =>
+        L10n.TrFormat(
+            "Estimated empty in {0}, based on the last {1} minutes",
+            CompactCountdown(forecast.Remaining),
+            forecast.WindowMinutes);
 }

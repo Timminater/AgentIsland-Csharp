@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using AgentIsland.Core;
 using AgentIsland.Backend.Cost;
+using AgentIsland.Backend.Interaction;
 using AgentIsland.Backend.Settings;
 using AgentIsland.Backend.Usage;
 using AgentIsland.UI.Charts;
@@ -13,6 +14,7 @@ public partial class ProvidersSettingsPage : UserControl
 {
     public static string TokensSectionLabel => L10n.Tr("Tokens").ToUpperInvariant();
     public static string CostSectionLabel => L10n.Tr("Cost").ToUpperInvariant();
+    public static string ApprovalsSectionLabel => L10n.Tr("Approvals").ToUpperInvariant();
 
     private readonly List<ProviderRowControl> _rows = new();
     private readonly IProviderVisibilityStore _visibilityStore;
@@ -42,12 +44,9 @@ public partial class ProvidersSettingsPage : UserControl
 
         InitializeComponent();
 
-        SlotNotice.Text = L10n.Tr("Pick at most two — turn one off first");
-
         foreach (var provider in _visibilityStore.Order)
         {
             var row = new ProviderRowControl(provider, _visibilityStore);
-            row.SlotRefusalChanged += ShowSlotLimit;
             row.RefreshRequested += RefreshRows;
             row.ClaudePasteLoginRequested += StartClaudePasteLogin;
             row.CodexSaveAccountRequested += PromptParkCodexAccount;
@@ -79,24 +78,57 @@ public partial class ProvidersSettingsPage : UserControl
             _deepSeekBalanceStore.KickRefresh();
         };
 
+        ApprovalsButton.Clicked += ToggleApprovals;
+        UpdateApprovalsButton();
+
         RefreshRows();
+    }
+
+    /// A1–A5: the island can only answer a blocked agent if Claude Code's own
+    /// hooks point back at this executable. Install or remove them here.
+    private void ToggleApprovals()
+    {
+        var wasInstalled = ClaudeHookInstaller.IsInstalled();
+        var succeeded = wasInstalled
+            ? ClaudeHookInstaller.Uninstall()
+            : ClaudeHookInstaller.Install();
+        if (!succeeded)
+        {
+            ApprovalsRow.Subtitle = wasInstalled
+                ? L10n.Tr("The Claude hooks could not be removed. Check access to settings.json.")
+                : L10n.Tr("The Claude hooks could not be installed. Check access to settings.json.");
+            return;
+        }
+        UpdateApprovalsButton();
+    }
+
+    private void UpdateApprovalsButton()
+    {
+        var state = ClaudeHookInstaller.GetInstallationState();
+        ApprovalsButton.Label = state == ClaudeHookInstaller.InstallationState.Installed
+            ? L10n.Tr("Remove") : L10n.Tr("Install");
+        ApprovalsRow.Subtitle = state switch
+        {
+            ClaudeHookInstaller.InstallationState.Installed =>
+                L10n.Tr("Wired up. Restart any running Claude Code session so it picks up the hook."),
+            ClaudeHookInstaller.InstallationState.Partial =>
+                L10n.Tr("Partly installed. Install again to repair the missing Claude hook."),
+            ClaudeHookInstaller.InstallationState.Invalid =>
+                L10n.Tr("Claude settings.json is invalid and could not be read."),
+            _ => L10n.Tr("Let the island answer Claude Code permission prompts, questions and plans."),
+        };
     }
 
     private void UpdateTokenSubtitle()
     {
         TokenCountingRow.Subtitle = _tokenCountModeStore.Mode == TokenCountMode.All
-            ? "Input, output, and cache."
-            : "Input and output only.";
-    }
-
-    public void ShowSlotLimit(bool refused)
-    {
-        SlotNotice.Visibility = refused ? Visibility.Visible : Visibility.Collapsed;
+            ? L10n.Tr("Input, output, and cache.")
+            : L10n.Tr("Input and output only.");
     }
 
     public void RefreshRows()
     {
-        // Slot header marks + count
+        // Header marks + count: every enabled provider, one of them active.
         MarksHost.Children.Clear();
         foreach (var provider in _visibilityStore.Enabled)
         {

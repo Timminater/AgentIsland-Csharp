@@ -1,6 +1,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Windows;
 using AgentIsland.Core;
 
@@ -47,6 +48,7 @@ public static class UpdateInstaller
             LastAction = "download";
             var zip = await DownloadAsync(info, percent =>
                 dialog.SetMessage(AgentIsland.UI.Localization.L10n.TrFormat("Downloading update… {0}%", percent)));
+            await VerifySha256Async(zip, info);
 
             dialog.SetMessage(AgentIsland.UI.Localization.L10n.Tr("Installing update…"));
             LastAction = "extract";
@@ -87,6 +89,25 @@ public static class UpdateInstaller
                 primaryLabel: AgentIsland.UI.Localization.L10n.Tr("Open download page"),
                 primaryAction: UpdateChecker.OpenReleasesPage,
                 secondaryLabel: AgentIsland.UI.Localization.L10n.Tr("I know"));
+        }
+    }
+
+    private static async Task VerifySha256Async(string zipPath, UpdateInfo info)
+    {
+        if (info.Sha256Url is null) throw new IOException("release has no SHA-256 checksum");
+        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("AgentIsland-Windows-Updater");
+        var checksumText = await client.GetStringAsync(info.Sha256Url);
+        var expected = checksumText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+        if (expected is null || expected.Length != 64
+            || !expected.All(Uri.IsHexDigit)) throw new IOException("invalid SHA-256 checksum");
+        await using var stream = File.OpenRead(zipPath);
+        var actual = Convert.ToHexString(await SHA256.HashDataAsync(stream));
+        if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+        {
+            TryDelete(zipPath);
+            throw new IOException("SHA-256 checksum mismatch");
         }
     }
 

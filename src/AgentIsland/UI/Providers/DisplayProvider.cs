@@ -2,10 +2,11 @@ using AgentIsland.Core;
 
 namespace AgentIsland.UI.Providers;
 
-/// Display-layer provider identity for the island's two silhouette slots.
-/// Strictly a presentation concept: full monitoring (usage windows, turn
-/// alarms, attention states) stays with Claude and Codex — the guest slots
-/// are usage badges, logo + quota pill and nothing deeper.
+/// Display-layer provider identity for the island's provider set. Exactly one
+/// is the ACTIVE provider rendered in the bar; the rest are reached from the
+/// hover switcher. Strictly a presentation concept: full monitoring (usage
+/// windows, turn alarms, attention states) stays with Claude and Codex — the
+/// guest providers are usage badges, logo + quota pill and nothing deeper.
 public enum DisplayProvider
 {
     Claude,
@@ -133,12 +134,18 @@ public static class DisplayProviderExtensions
     };
 }
 
-/// Pure selection rules for the island's two slots — no singleton, no
-/// Preferences — so the max-2 constraint, the legacy migration and the
-/// persistence round-trip stay testable on their own.
+/// Pure selection rules for the island's provider set — no singleton, no
+/// Preferences — so the selection, the legacy migration and the persistence
+/// round-trip stay testable on their own.
+///
+/// The island now renders ONE active provider at a time (the rest are
+/// reachable from the hover switcher), so any number of providers may be
+/// enabled: the old two-slot cap is gone.
 public static class ProviderSelection
 {
-    public const int MaxEnabled = 2;
+    /// Upper bound is simply "every known provider"; kept as a named value so
+    /// the settings header can show `selected / total` without hardcoding 6.
+    public static int MaxEnabled => DisplayProviders.All.Length;
 
     public static List<DisplayProvider> SanitizeOrder(IEnumerable<string>? rawOrder)
     {
@@ -167,7 +174,7 @@ public static class ProviderSelection
                 enabledSet.Add(provider);
             }
         }
-        return order.Where(enabledSet.Contains).Take(MaxEnabled).ToList();
+        return order.Where(enabledSet.Contains).ToList();
     }
 
     public static bool TryToggle(
@@ -180,11 +187,6 @@ public static class ProviderSelection
         {
             nextEnabled = currentEnabled.Where(item => item != provider).ToList();
             return true;
-        }
-        if (currentEnabled.Count >= MaxEnabled)
-        {
-            nextEnabled = currentEnabled.ToList();
-            return false;
         }
         var nextSet = new HashSet<DisplayProvider>(currentEnabled) { provider };
         nextEnabled = order.Where(nextSet.Contains).ToList();

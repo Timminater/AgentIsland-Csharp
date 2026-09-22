@@ -4,14 +4,15 @@ namespace AgentIsland.UI.Localization;
 
 /// String lookup with an English key namespace, mirroring the macOS L10n
 /// helper. The zh-Hans table is ported from Resources/zh-Hans.lproj; keys
-/// missing from the table fall back to the key itself (English).
-public static class L10n
+/// missing from a table fall back to the English table, then to the key itself.
+public static partial class L10n
 {
     public enum Language
     {
         Auto,
         English,
         SimplifiedChinese,
+        Dutch,
     }
 
     public static Language Current { get; set; } = Language.Auto;
@@ -20,12 +21,36 @@ public static class L10n
     {
         Language.SimplifiedChinese => true,
         Language.English => false,
+        Language.Dutch => false,
         _ => CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase),
     };
+
+    public static bool IsDutch => Current switch
+    {
+        Language.Dutch => true,
+        Language.English or Language.SimplifiedChinese => false,
+        _ => CultureInfo.CurrentUICulture.Name.StartsWith("nl", StringComparison.OrdinalIgnoreCase),
+    };
+
+    /// The culture numbers and percentages are formatted with. It follows the
+    /// SELECTED language rather than the OS culture, so an English UI never
+    /// renders a Dutch decimal comma (and vice versa).
+    public static CultureInfo NumberCulture => IsChinese
+        ? CultureInfo.GetCultureInfo("zh-CN")
+        : IsDutch
+            ? CultureInfo.GetCultureInfo("nl-NL")
+            : CultureInfo.InvariantCulture;
 
     public static string Tr(string key)
     {
         if (IsChinese) return ChineseTable.TryGetValue(key, out var value) ? value : key;
+        if (IsDutch)
+        {
+            // A missing Dutch entry falls back to the English copy rather than
+            // the raw key, so a partially translated UI still reads naturally.
+            if (DutchTable.TryGetValue(key, out var dutch)) return dutch;
+            return EnglishTable.TryGetValue(key, out var fallback) ? fallback : key;
+        }
         // The English layer mirrors macOS en.lproj: keys stay historical so
         // call sites never churn, while display copy evolves (trailing full
         // stops stripped, Thread→Session, AgentIsland→Agent Island).
@@ -102,6 +127,14 @@ public static class L10n
         ["Launch at login"] = "登录时启动",
         ["Alerts"] = "提醒",
         ["Approaching-limit alerts"] = "接近限额提醒",
+        ["Time-to-empty countdown"] = "预计用尽倒计时",
+        ["Starts after two measurements; pauses hide stale estimates"] = "两次测量后开始；暂停时隐藏过时预测",
+        ["Show when remaining is below"] = "剩余低于此值时显示",
+        ["Average window"] = "平均时间窗",
+        ["Dynamic"] = "动态",
+        ["Estimated empty in {0}, based on the last {1} minutes"] = "预计 {0} 后用尽（基于最近 {1} 分钟）",
+        ["Know when usage runs out"] = "提前知道额度何时用尽",
+        ["Below your chosen remaining-quota threshold, the top bar can estimate time to empty from recent usage — and automatically go quiet during pauses"] = "低于你设置的剩余额度阈值后，顶栏会根据近期用量预测用尽时间，并在暂停时自动隐藏",
         ["Warning at {0}%"] = "警告阈值 {0}%",
         ["Critical at {0}%"] = "严重阈值 {0}%",
         ["Left-click +5, right-click -5"] = "左键 +5，右键 -5",
@@ -221,7 +254,7 @@ public static class L10n
         ["Claude Code CLI not found. Log in from a terminal with: claude /login"] = "未找到 Claude Code CLI。请在终端中运行 claude /login 登录",
         ["Codex CLI not found. Log in from a terminal with: codex login"] = "未找到 Codex CLI。请在终端中运行 codex login 登录",
         ["Retry"] = "重试",
-        ["Both providers hidden"] = "两个服务都已隐藏",
+        ["No providers enabled"] = "未启用任何服务",
         ["Re-enable in Settings → Providers"] = "在设置 → 服务中重新启用",
         // Settings window (macOS-parity copy)
         ["Updates"] = "更新",
@@ -281,6 +314,17 @@ public static class L10n
         ["no deepseek api key"] = "未配置 DeepSeek API Key",
         ["deepseek api key rejected"] = "DeepSeek API Key 无效",
         ["account balance not fetched"] = "尚未查询账户余额",
+        // DeepSeek peak / off-peak billing (official schedule is Beijing time)
+        ["Peak hours"] = "高峰时段",
+        ["Off-peak"] = "空闲时段",
+        ["peak"] = "高峰",
+        ["off-peak"] = "空闲",
+        ["50% off"] = "五折",
+        ["{0} → {1}"] = "{0} 后 → {1}",
+        ["Beijing time"] = "北京时间",
+        ["weekend · {0}"] = "周末 · {0}",
+        ["Shown on your clock: {0}."] = "换算到你的时区：{0}。",
+        ["DeepSeek bills peak rates Monday–Friday 09:00–12:00 and 14:00–18:00 Beijing time; every other hour is off-peak at half price."] = "DeepSeek 高峰时段为北京时间周一至周五 9:00–12:00 与 14:00–18:00，其余时间均为空闲时段，价格为高峰时段的一半。",
         ["synced {0}"] = "已同步 {0}",
         ["When off, no resume command is ever spawned."] = "关闭后不会再派生任何续跑命令",
         ["Every run, executed or blocked, is logged."] = "每次运行（执行或被拦截）都会记录",
@@ -379,7 +423,6 @@ public static class L10n
         ["Copy the whole code from the page and try once more"] = "把页面上的授权码完整复制一次再试",
         // Five-provider settings rows (2.x). The %d/%@ holes of the macOS
         // strings become {0} here; the copy itself is byte-identical.
-        ["Pick at most two — turn one off first"] = "最多同时显示两个，先关一个再开",
         ["Installed — run agy to sign in"] = "已安装 — 运行 agy 登录",
         ["At a glance"] = "更新速览",
         ["The fifth seat changes hands: Antigravity replaces Gemini — Google's gradient, a real weekly quota, resume to the exact conversation — and every alarm now lands back in the terminal you actually use"] = "第五席易主：Antigravity 接替 Gemini——谷歌渐变、真实周额度、精确续跑；\n每个弹窗都能跳回你正在用的那个终端",
@@ -412,13 +455,21 @@ public static class L10n
         ["Five agents on one island — each read from the records it already writes on your Mac"] = "五家 Agent 同在一座岛——各自读它们本来就写在本机的记录",
         ["Monitor"] = "监视器",
         ["All five agents carry live session state — Claude, Codex, Grok, Antigravity, and Cursor. Spinning means working, a bell means it's your turn, and steady red means it needs you"] = "Claude、Codex、Grok、Antigravity、Cursor 五家全部显示实时状态：\n旋转表示工作中，铃铛表示轮到你，常红表示需要处理",
-        ["Claude, Codex, Antigravity, Grok, and Cursor — pick any two for the top bar. Hover any row for model or product detail, click through to the official page"] = "Claude、Codex、Antigravity、Grok、Cursor 任选两家常驻顶部；\n悬停服务行查看模型或产品明细，点击打开官方页面",
+        ["Claude, Codex, Antigravity, Grok, and Cursor — enable any number for the island. One is active in the top bar; hover it and click another provider to switch. Hover any row for model or product detail, click through to the official page"] = "Claude、Codex、Antigravity、Grok、Cursor 可任意启用；\n顶部栏显示当前服务，悬停后点击其他服务即可切换；\n悬停服务行查看模型或产品明细，点击打开官方页面",
         ["Cost & history"] = "成本与历史",
         ["Local session logs become token counts, API value, and the year heatmap — nothing leaves your machine"] = "本机会话日志变成 token 统计、API 价值与全年热力图，数据不出你的电脑",
         ["Report cards"] = "战绩卡",
         ["One click renders a shareable battle card — copy it or send it to your phone, and the arrows flip back to any past week or month"] = "一键生成可分享的战报卡，复制或发送到手机；箭头能翻回任意一周或一月",
         ["Personalization"] = "个性化",
         ["Visual modes, glow colors, chart styles, language — and how alarms behave while you're in the session's app — all in Settings"] = "视觉模式、光晕、图表、语言和前台提醒，都在设置里",
+        ["Six providers share one island, with one active provider in the top bar and every enabled provider available from the switcher"] = "六家服务共享一座岛：顶部栏显示当前服务，其余已启用服务可从切换器中选择",
+        ["Approvals on the island"] = "在岛上审批",
+        ["Answer Claude Code permissions, questions and plan reviews without losing the context of the active session"] = "无需离开当前会话上下文，即可回答 Claude Code 的权限请求、问题和计划审查",
+        ["Cost across all providers"] = "所有服务的成本",
+        ["Local usage records feed costs and reports for Claude, Codex, Antigravity, Grok, Cursor and DeepSeek"] = "Claude、Codex、Antigravity、Grok、Cursor 和 DeepSeek 的本地使用记录用于生成成本和报告",
+        ["Six providers on one island — each read from the local records it already writes on this computer"] = "六家服务同在一座岛——各自读取它们已在本机写入的本地记录",
+        ["Enabled providers carry live session state where their local tools expose it. Spinning means working, a bell means it's your turn, and steady red means it needs you"] = "本地工具支持时，已启用服务会显示实时会话状态：旋转表示工作中，铃铛表示轮到你，常红表示需要处理",
+        ["Enable any number of providers. One is active in the top bar; use the switcher to move between the others"] = "可启用任意数量的服务。顶部栏显示当前服务，使用切换器在其他服务之间切换",
         ["Not detected — sign in with the antigravity CLI"] = "未检测到 — 用 antigravity CLI 登录",
         ["Not detected — sign in with the grok CLI"] = "未检测到 grok CLI 登录",
         ["Not detected — sign in inside Cursor"] = "未检测到 — 请在 Cursor 里登录",
@@ -507,6 +558,9 @@ public static class L10n
         ["The update downloads in the background, then Agent Island relaunches on the new version."] = "The update downloads in the background, then Agent Island relaunches on the new version",
         ["Automatic update failed. You can download the new version manually from GitHub Releases."] = "Automatic update failed. You can download the new version manually from GitHub Releases",
         ["Usage tiles and top-bar percentages follow this."] = "Usage tiles and top-bar percentages follow this",
+        ["Starts after two measurements; pauses hide stale estimates"] = "Starts after two measurements; pauses hide stale estimates",
+        ["Estimated empty in {0}, based on the last {1} minutes"] = "Estimated empty in {0}, based on the last {1} minutes",
+        ["Below your chosen remaining-quota threshold, the top bar can estimate time to empty from recent usage — and automatically go quiet during pauses"] = "Below your chosen remaining-quota threshold, the top bar can estimate time to empty from recent usage — and automatically go quiet during pauses",
         ["Percent readouts count down what's left of each window rather than up what's spent."] = "Percent readouts count down what's left of each window rather than up what's spent",
         ["Copied! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"] = "Copied! Post it — bring a friend to the island 🏝️",
         ["Saved! Post it and bring a friend to the island 🏝️ Thanks for spreading the word"] = "Saved to file — bring a friend to the island 🏝️",
@@ -536,6 +590,16 @@ public static class L10n
         ["no deepseek api key"] = "DeepSeek API key not configured",
         ["deepseek api key rejected"] = "DeepSeek API key rejected",
         ["account balance not fetched"] = "account balance not fetched",
+        ["Peak hours"] = "Peak hours",
+        ["Off-peak"] = "Off-peak",
+        ["peak"] = "peak",
+        ["off-peak"] = "off-peak",
+        ["50% off"] = "50% off",
+        ["{0} → {1}"] = "{0} → {1}",
+        ["Beijing time"] = "Beijing time",
+        ["weekend · {0}"] = "weekend · {0}",
+        ["Shown on your clock: {0}."] = "Shown on your clock: {0}",
+        ["DeepSeek bills peak rates Monday–Friday 09:00–12:00 and 14:00–18:00 Beijing time; every other hour is off-peak at half price."] = "DeepSeek bills peak rates Mon–Fri 09:00–12:00 and 14:00–18:00 Beijing time; every other hour is off-peak at half price",
         ["{0} tokens today"] = "{0} tokens today",
         ["When off, no resume command is ever spawned."] = "When off, no resume command is ever spawned",
         ["Every run, executed or blocked, is logged."] = "Every run, executed or blocked, is logged",

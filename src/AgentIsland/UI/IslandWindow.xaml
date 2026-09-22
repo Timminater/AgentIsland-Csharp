@@ -81,6 +81,17 @@
                     <ui:ProviderLogo x:Name="RightLogo" Grid.Column="3"/>
                     <ui:NotchPeekPill x:Name="RightPill" Grid.Column="4"
                                       HorizontalAlignment="Right" Margin="6,0,14,0" Opacity="0"/>
+
+                    <!-- Hover switcher: one icon per enabled+detected
+                         provider, the active one highlighted. Click an icon to
+                         make that provider the active one. Lives in the centre
+                         gap, which is only wide enough in the Peek state. -->
+                    <StackPanel x:Name="ProviderSwitcher" Grid.Column="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Opacity="0"
+                                Visibility="Collapsed"/>
                 </Grid>
 
                 <!-- Expanded panel: swipeable pages over a fixed footer. -->

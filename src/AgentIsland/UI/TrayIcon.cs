@@ -32,7 +32,8 @@ public sealed class TrayIcon : IDisposable
         Action exit,
         IUsageStore? usageStore = null,
         Backend.Monitoring.IActivityMonitor? activityMonitor = null,
-        Backend.Settings.IProviderVisibilityStore? visibilityStore = null)
+        Backend.Settings.IProviderVisibilityStore? visibilityStore = null,
+        Action? openTranscripts = null)
     {
         _usageStore = usageStore ?? (App.Instance?.Services?.GetService(typeof(IUsageStore)) as IUsageStore) ?? new UsageStore();
         _activityMonitor = activityMonitor ?? (App.Instance?.Services?.GetService(typeof(Backend.Monitoring.IActivityMonitor)) as Backend.Monitoring.IActivityMonitor) ?? new Backend.Monitoring.ActivityMonitor();
@@ -48,6 +49,7 @@ public sealed class TrayIcon : IDisposable
             openDailyReport: () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Daily),
             openWeeklyReport: () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly),
             openMonthlyReport: () => Report.ReportWindow.Show(Report.ReportWindow.Kind.Monthly),
+            openTranscripts: openTranscripts,
             isTransparentModeQuery: () =>
             {
                 var app = System.Windows.Application.Current;
@@ -115,18 +117,25 @@ public sealed class TrayIcon : IDisposable
 
         double usage5h = 0;
         var worst = ActivityState.Idle;
-        string? claudeText = null, codexText = null;
-        if (visibility.ClaudeShown)
+        var usageParts = new List<string>();
+        foreach (var provider in visibility.Enabled)
         {
-            usage5h = Math.Max(usage5h, usage.Claude.FiveHour.UsedPercent);
-            if (monitor.Claude > worst) worst = monitor.Claude;
-            claudeText = "Claude " + Percent(usage.Claude.FiveHour.UsedPercent);
-        }
-        if (visibility.CodexShown)
-        {
-            usage5h = Math.Max(usage5h, usage.Codex.FiveHour.UsedPercent);
-            if (monitor.Codex > worst) worst = monitor.Codex;
-            codexText = "Codex " + Percent(usage.Codex.FiveHour.UsedPercent);
+            var state = monitor.StateFor(provider.ToTriggerTool());
+            if (state > worst) worst = state;
+            switch (provider)
+            {
+                case DisplayProvider.Claude:
+                    usage5h = Math.Max(usage5h, usage.Claude.FiveHour.UsedPercent);
+                    usageParts.Add("Claude " + Percent(usage.Claude.FiveHour.UsedPercent));
+                    break;
+                case DisplayProvider.Codex:
+                    usage5h = Math.Max(usage5h, usage.Codex.FiveHour.UsedPercent);
+                    usageParts.Add("Codex " + Percent(usage.Codex.FiveHour.UsedPercent));
+                    break;
+                default:
+                    usageParts.Add(provider.DisplayName());
+                    break;
+            }
         }
 
         var visualKey = TrayIconRenderer.GetVisualStateKey(usage5h, worst);
@@ -138,15 +147,17 @@ public sealed class TrayIcon : IDisposable
             _lastVisualKey = visualKey;
         }
 
-        var parts = new[] { claudeText, codexText }.Where(p => p is not null);
-        var joined = string.Join(" · ", parts);
+        var joined = string.Join(" · ", usageParts);
         var status = StatusWord(worst);
         var nextText = status is null
             ? (joined.Length == 0 ? "Agent Island" : "Agent Island · " + joined)
             : $"Agent Island · {status}" + (joined.Length == 0 ? "" : " · " + joined);
-        if (!string.Equals(_icon.Text, nextText, StringComparison.Ordinal))
+        // NotifyIcon's native tooltip buffer is capped. Keep every provider in
+        // the menu status, but never let a long enabled list break tray updates.
+        var tooltip = nextText.Length > 63 ? nextText[..60] + "…" : nextText;
+        if (!string.Equals(_icon.Text, tooltip, StringComparison.Ordinal))
         {
-            _icon.Text = nextText;
+            _icon.Text = tooltip;
         }
 
         _modernMenu.UpdateStatus(joined, worst);

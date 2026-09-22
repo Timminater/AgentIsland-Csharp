@@ -24,7 +24,9 @@ public class UpdateCheckerTests
             { "name": "appcast.xml", "size": 2048,
               "browser_download_url": "https://github.com/x/y/releases/download/v1.5.5/appcast.xml" },
             { "name": "AgentIsland-1.5.5-win-x64.zip", "size": 67858030,
-              "browser_download_url": "https://github.com/x/y/releases/download/v1.5.5/AgentIsland-1.5.5-win-x64.zip" }
+              "browser_download_url": "https://github.com/x/y/releases/download/v1.5.5/AgentIsland-1.5.5-win-x64.zip" },
+            { "name": "AgentIsland-1.5.5-win-x64.zip.sha256", "size": 96,
+              "browser_download_url": "https://github.com/x/y/releases/download/v1.5.5/AgentIsland-1.5.5-win-x64.zip.sha256" }
           ]
         }
         """;
@@ -56,6 +58,8 @@ public class UpdateCheckerTests
         Expect(unified.AssetUrl!.EndsWith("AgentIsland-1.5.5-win-x64.zip", StringComparison.Ordinal),
             "asset url is the zip's download url");
         Expect(unified.AssetSize == 67858030, "asset size carried for the download check");
+        Expect(unified.Sha256Url!.EndsWith(".zip.sha256", StringComparison.Ordinal),
+            "matching checksum is required for automatic replacement");
 
         var wrongArch = UpdateChecker.ParseRelease(UnifiedRelease, "win-arm64");
         Expect(wrongArch is not null && wrongArch.AssetUrl is null,

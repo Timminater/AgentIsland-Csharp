@@ -27,6 +27,15 @@ public sealed class UsagePage : Border
     private readonly Button _reauth;
     private readonly Border _hairline;
     private readonly TextBlock _bothHidden;
+    /// Compact rows for every enabled provider that is not the active one.
+    private readonly StackPanel _othersStrip = new()
+    {
+        Orientation = Orientation.Horizontal,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(0, 10, 0, 0),
+        Visibility = Visibility.Collapsed,
+    };
 
     private readonly IUsageStore _usageStore;
     private readonly IDeepSeekBalanceStore _balanceStore;
@@ -66,6 +75,10 @@ public sealed class UsagePage : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // Row 0 carries the active provider's column(s); row 1 the compact
+        // strip of the remaining enabled providers.
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         _hairline = new Border
         {
@@ -138,12 +151,17 @@ public sealed class UsagePage : Border
             TextAlignment = TextAlignment.Center,
             MaxWidth = 360,
             Visibility = Visibility.Collapsed,
-            Text = AgentIsland.UI.Localization.L10n.Tr("Both providers hidden")
+            Text = AgentIsland.UI.Localization.L10n.Tr("No providers enabled")
                 + "\n"
                 + AgentIsland.UI.Localization.L10n.Tr("Re-enable in Settings → Providers"),
         };
         Grid.SetColumnSpan(_bothHidden, 3);
         grid.Children.Add(_bothHidden);
+
+        // The compact "rest" strip sits under the active provider's column.
+        Grid.SetRow(_othersStrip, 1);
+        Grid.SetColumnSpan(_othersStrip, 3);
+        grid.Children.Add(_othersStrip);
 
         // PagedContent recreates this page whenever the visible screens
         // change; detach on Unloaded or each dead instance stays pinned by
@@ -273,6 +291,7 @@ public sealed class UsagePage : Border
 
         _hairline.Visibility = slots.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         _bothHidden.Visibility = slots.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
+        RebuildOthers(slots);
 
         // Only the columns on screen refresh. A collapsed block would still
         // run its meter animations — three hidden providers' worth of
@@ -308,6 +327,67 @@ public sealed class UsagePage : Border
     {
         Grid.SetColumn(element, column);
         element.Visibility = Visibility.Visible;
+    }
+
+    /// Compact one-line rows for every enabled+detected provider that is not
+    /// the active one, shown under the active provider's full-size column.
+    private void RebuildOthers(IReadOnlyList<DisplayProvider> slots)
+    {
+        _othersStrip.Children.Clear();
+        var active = slots.Count > 0 ? slots[0] : (DisplayProvider?)null;
+        foreach (var provider in _visibilityStore.Enabled)
+        {
+            if (provider == active || !_visibilityStore.IsShown(provider)) continue;
+            _othersStrip.Children.Add(MakeCompactRow(provider));
+        }
+        _othersStrip.Visibility = _othersStrip.Children.Count > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private UIElement MakeCompactRow(DisplayProvider provider)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 18, 0),
+        };
+        row.Children.Add(ProviderMarks.Mark(provider, 12, 0.85));
+        row.Children.Add(new TextBlock
+        {
+            Text = provider.DisplayName(),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.75)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 8, 0),
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = CompactCaption(provider),
+            FontFamily = IslandFonts.Mono,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        return row;
+    }
+
+    private string CompactCaption(DisplayProvider provider)
+    {
+        if (provider == DisplayProvider.DeepSeek)
+        {
+            return _balanceStore.Snapshot is { } snapshot
+                ? DeepSeekBalanceText.Total(snapshot)
+                : AgentIsland.UI.Localization.L10n.Tr("tokens");
+        }
+        var usage = UsageFor(provider, _usageStore, _antigravityStore, _grokStore, _cursorStore);
+        var five = Core.Formatting.PercentInt(usage.FiveHour.UsedPercent);
+        if (usage.SecondaryMissing) return $"{five}%";
+        var week = Core.Formatting.PercentInt(usage.Weekly.UsedPercent);
+        return $"{five}% / {week}%";
     }
 
     /// Shared with the island bar — the slots render whichever providers
@@ -439,24 +519,26 @@ internal sealed class ProviderChartsBlock : StackPanel
 
 /// DeepSeek's usage-column face. It shows the official account balance and
 /// its granted/top-up breakdown instead of pretending that a currency amount
-/// is a 5h or weekly percentage.
+/// is a 5h or weekly percentage, and it carries the peak/off-peak day bar —
+/// DeepSeek bills off-peak at half price, so the column answers "am I in the
+/// cheap window right now?" beside the balance it would spend.
 internal sealed class DeepSeekBalanceBlock : StackPanel
 {
     private readonly TextBlock _hero;
     private readonly TextBlock _caption;
     private readonly TextBlock _details;
     private readonly TextBlock _status;
+    private readonly DeepSeekPeakHoursBar _peakBar = new();
 
     internal DeepSeekBalanceBlock()
     {
         Orientation = Orientation.Vertical;
-        Height = ProviderChartsBlockHeight;
         Margin = new Thickness(12, 0, 12, 0);
 
         _hero = new TextBlock
         {
             FontFamily = IslandFonts.Mono,
-            FontSize = 30,
+            FontSize = 26,
             FontWeight = FontWeights.SemiBold,
             Foreground = IslandColors.Brush(ProviderIdentity.DeepSeekAccent),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -465,7 +547,7 @@ internal sealed class DeepSeekBalanceBlock : StackPanel
         _caption = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
-            FontSize = 11,
+            FontSize = 10,
             FontWeight = FontWeights.Medium,
             Foreground = IslandColors.Brush(IslandColors.White(0.62)),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -474,7 +556,7 @@ internal sealed class DeepSeekBalanceBlock : StackPanel
         _details = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
-            FontSize = 10,
+            FontSize = 9,
             Foreground = IslandColors.Brush(IslandColors.White(0.42)),
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
@@ -483,20 +565,28 @@ internal sealed class DeepSeekBalanceBlock : StackPanel
         _status = new TextBlock
         {
             FontFamily = IslandFonts.Ui,
-            FontSize = 10,
+            FontSize = 9,
             Foreground = IslandColors.Brush(IslandColors.White(0.48)),
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
+        _peakBar.Margin = new Thickness(0, 2, 0, 0);
+
         Children.Add(_hero);
         Children.Add(_caption);
         Children.Add(_details);
         Children.Add(_status);
+        Children.Add(_peakBar);
     }
 
     internal void Update(IDeepSeekBalanceStore store)
     {
+        // The block can sit hidden for hours between polls; re-seed the day
+        // bar on every update so a column revealed after a midnight rollover
+        // shows today's bands and not the ones it was painted with.
+        _peakBar.Refresh(DateTimeOffset.Now);
+
         _hero.Text = store.Snapshot is { } snapshot
             ? DeepSeekBalanceText.Total(snapshot)
             : "—";
@@ -531,6 +621,10 @@ internal sealed class DeepSeekBalanceBlock : StackPanel
     }
 
     // Keep the balance face aligned with the two percentage columns without
-    // coupling it to ChartTile's public implementation details.
-    private const double ProviderChartsBlockHeight = 96;
+    // coupling it to ChartTile's public implementation details. This is the
+    // budget the hero, captions and the peak-hours bar must share — the
+    // layout test measures against it. The bar added 35 DIP to the column, so
+    // the budget covers the measured worst case (hero 30.2 + caption 13.3 +
+    // details 12.0 + status 12.0 + bar 35.0 = 102.4 DIP).
+    internal const double ProviderChartsBlockHeight = 104;
 }

@@ -13,7 +13,9 @@ if (-not $Version) {
 if (-not $Version) { $Version = "0.0.0" }
 $version = "$Version".Trim()
 
-$publishDir = "dist\publish"
+# Version the staging directory so making a new release never tries to delete
+# an older executable the user may currently be running.
+$publishDir = "dist\publish-$version"
 if (Test-Path -LiteralPath $publishDir) {
     Remove-Item -LiteralPath $publishDir -Recurse -Force
 }

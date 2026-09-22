@@ -199,7 +199,7 @@ public class ProviderPluginTests
         public string? AuthModeBadge => null;
         public bool Loading => false;
 
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
 
         public void KickRefresh() => KickCount++;
         public void ClearMemory() { }
@@ -211,6 +211,8 @@ public class ProviderPluginTests
         public IReadOnlyList<DisplayProvider> Slots => SlotProviders;
         public IReadOnlyList<DisplayProvider> Enabled => SlotProviders;
         public IReadOnlyList<DisplayProvider> Order => SlotProviders;
+        public DisplayProvider? ActiveProvider => SlotProviders.Count > 0 ? SlotProviders[0] : null;
+        public void SetActiveProvider(DisplayProvider provider) { }
         public bool ClaudeVisible { get; set; } = true;
         public bool CodexVisible { get; set; } = true;
 
@@ -243,7 +245,7 @@ public class ProviderPluginTests
         public bool IsEnabled(DisplayProvider provider) => SlotProviders.Contains(provider);
         public bool Toggle(DisplayProvider provider) => true;
 
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     private static void Assert(bool condition, string message)

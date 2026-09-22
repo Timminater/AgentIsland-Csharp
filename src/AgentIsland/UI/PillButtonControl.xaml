@@ -6,7 +6,7 @@
              mc:Ignorable="d"
              d:Background="Black"
              xmlns:charts="clr-namespace:AgentIsland.UI.Charts"
-             VerticalAlignment="Center">
+             VerticalAlignment="Center" Focusable="True">
     <Border x:Name="RootBorder"
             CornerRadius="6"
             Background="#1AFFFFFF"

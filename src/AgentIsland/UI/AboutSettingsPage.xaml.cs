@@ -21,7 +21,7 @@ public sealed partial class AboutSettingsPage : UserControl
         ForkRepoRow.MouseLeftButtonUp += (_, args) =>
         {
             args.Handled = true;
-            OpenUrl("https://github.com/newton5555/AgentIsland-Csharp");
+            OpenUrl("https://github.com/Timminater/AgentIsland-Csharp");
         };
 
         UpstreamRepoRow.MouseEnter += (_, _) => UpstreamRepoRow.Background = IslandColors.Brush(IslandColors.White(0.12));

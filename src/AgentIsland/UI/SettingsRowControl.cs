@@ -133,6 +133,10 @@ public sealed class SettingsRowControl : ContentControl
 
     private void UpdateVisuals()
     {
+        if (Trailing is DependencyObject trailing && !string.IsNullOrWhiteSpace(Title))
+        {
+            System.Windows.Automation.AutomationProperties.SetName(trailing, L10n.Tr(Title));
+        }
         if (_titleBlock != null)
         {
             _titleBlock.Text = MonospaceTitle ? Title : L10n.Tr(Title ?? string.Empty);

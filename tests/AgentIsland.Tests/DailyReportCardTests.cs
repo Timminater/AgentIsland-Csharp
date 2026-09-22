@@ -13,13 +13,24 @@ public class DailyReportCardTests
     internal static void Run()
     {
         WpfTestEnvironment.EnsureInitialized();
-        TestHourlyBucketsSumPerLocalHour();
-        TestCacheReadAggregatesPerModelAndSlice();
-        TestCacheSavingsUsesPriceTableDeltaAndIgnoresUnknown();
-        TestDeltaHandlesZeroBaselineAndDirection();
-        TestPagerLabelRelativeDays();
-        TestAgentTreeSharesAreGlobalAndClipped();
-        TestForIntervalEmptySlicesYieldEmptyCard();
+        // The delta copy is asserted in English, and the number culture follows
+        // the selected language — pin it so a Dutch host renders "20.0%".
+        var originalLanguage = AgentIsland.UI.Localization.L10n.Current;
+        AgentIsland.UI.Localization.L10n.Current = AgentIsland.UI.Localization.L10n.Language.English;
+        try
+        {
+            TestHourlyBucketsSumPerLocalHour();
+            TestCacheReadAggregatesPerModelAndSlice();
+            TestCacheSavingsUsesPriceTableDeltaAndIgnoresUnknown();
+            TestDeltaHandlesZeroBaselineAndDirection();
+            TestPagerLabelRelativeDays();
+            TestAgentTreeSharesAreGlobalAndClipped();
+            TestForIntervalEmptySlicesYieldEmptyCard();
+        }
+        finally
+        {
+            AgentIsland.UI.Localization.L10n.Current = originalLanguage;
+        }
         Console.WriteLine("PASS daily report card aggregation, delta, labels, tree shares, clipping");
     }
 
@@ -43,19 +54,21 @@ public class DailyReportCardTests
         var day = new DateTime(2026, 9, 9);
         var slice = CostSummarizer.Slice(events, ReportPeriodsAtLocal(day), ReportPeriodsAtLocal(day.AddDays(1)));
 
-        if (slice.HourlyTokens is null || slice.HourlyTokens.Count != 24)
-            throw new Exception("HourlyTokens must be exactly 24 buckets.");
-        if (slice.HourlyTokens[3] != 1100) throw new Exception("Hour 3 must hold the 03:15 event's wire tokens.");
-        if (slice.HourlyTokens[14] != 5500) throw new Exception("Hour 14 must sum both 14:xx events.");
-        if (slice.HourlyTokens[9] != 550) throw new Exception("Hour 9 must hold the 09:00 event.");
-        if (slice.HourlyTokens.Where((t, h) => h is not (3 or 14 or 9) && t != 0).Any())
+        var hourlyTokens = slice.HourlyTokens
+            ?? throw new Exception("HourlyTokens must be exactly 24 buckets.");
+        if (hourlyTokens.Count != 24) throw new Exception("HourlyTokens must be exactly 24 buckets.");
+        if (hourlyTokens[3] != 1100) throw new Exception("Hour 3 must hold the 03:15 event's wire tokens.");
+        if (hourlyTokens[14] != 5500) throw new Exception("Hour 14 must sum both 14:xx events.");
+        if (hourlyTokens[9] != 550) throw new Exception("Hour 9 must hold the 09:00 event.");
+        if (hourlyTokens.Where((t, h) => h is not (3 or 14 or 9) && t != 0).Any())
             throw new Exception("Other hours must stay zero.");
 
         // Out-of-interval events must not leak into the slice.
         var nextDay = new List<TokenEvent> { Ev(3, 15, "claude-sonnet-4-6", 7000, 700) }
             .Select(e => e with { Timestamp = e.Timestamp.AddDays(1) }).ToList();
         var slice2 = CostSummarizer.Slice(nextDay, ReportPeriodsAtLocal(day), ReportPeriodsAtLocal(day.AddDays(1)));
-        if (slice2.HourlyTokens[3] != 0) throw new Exception("Next-day events must not leak into today's pulse.");
+        var nextHourly = slice2.HourlyTokens ?? throw new Exception("HourlyTokens must be present.");
+        if (nextHourly[3] != 0) throw new Exception("Next-day events must not leak into today's pulse.");
     }
 
     private static void TestCacheReadAggregatesPerModelAndSlice()

@@ -17,6 +17,7 @@ public sealed partial class PillButtonControl : UserControl
                 if (d is PillButtonControl control)
                 {
                     control.LabelBlock.Text = (string)e.NewValue;
+                    System.Windows.Automation.AutomationProperties.SetName(control, (string)e.NewValue);
                 }
             }));
 
@@ -42,6 +43,14 @@ public sealed partial class PillButtonControl : UserControl
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
+        e.Handled = true;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key is not (Key.Space or Key.Enter)) return;
+        Clicked?.Invoke();
         e.Handled = true;
     }
 

@@ -63,6 +63,7 @@ public class SettingsXamlTests
             "Alerts",
             "General",
             "Status",
+            "Notes",
             "About",
         };
 
@@ -465,19 +466,24 @@ public class SettingsXamlTests
             }
         }
 
-        // Slot limit refusal visibility
-        page.ShowSlotLimit(true);
-        if (page.SlotNotice.Visibility != Visibility.Visible)
+        // No cap any more: every provider may be enabled at once, and the
+        // header count reflects the full set.
+        foreach (var provider in visibility.Order)
         {
-            throw new Exception("Slot limit notice should be visible when refused");
+            visibility.SetEnabled(provider, true);
         }
-        page.ShowSlotLimit(false);
-        if (page.SlotNotice.Visibility != Visibility.Collapsed)
+        page.RefreshRows();
+        var total = AgentIsland.UI.Providers.DisplayProviders.All.Length;
+        if (visibility.Enabled.Count != total)
         {
-            throw new Exception("Slot limit notice should be collapsed when not refused");
+            throw new Exception($"All providers must be selectable, got {visibility.Enabled.Count} of {total}");
+        }
+        if (page.CountText.Text != $"{total} / {total}")
+        {
+            throw new Exception($"Header count should read N / total, got '{page.CountText.Text}'");
         }
 
-        Console.WriteLine($"PASS ProvidersSettingsPage {expectedCount} rows order and slot rejection hold");
+        Console.WriteLine($"PASS ProvidersSettingsPage {expectedCount} rows order and unlimited selection hold");
     }
 
     private static void TestCodexAccountMenuStructure()

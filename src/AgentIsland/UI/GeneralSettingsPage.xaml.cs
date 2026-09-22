@@ -38,6 +38,7 @@ public sealed partial class GeneralSettingsPage : UserControl
         {
             L10n.Language.English => 1,
             L10n.Language.SimplifiedChinese => 2,
+            L10n.Language.Dutch => 3,
             _ => 0,
         };
         LanguageCombo.SelectionChanged += OnLanguageSelectionChanged;
@@ -71,6 +72,7 @@ public sealed partial class GeneralSettingsPage : UserControl
         {
             1 => L10n.Language.English,
             2 => L10n.Language.SimplifiedChinese,
+            3 => L10n.Language.Dutch,
             _ => L10n.Language.Auto,
         };
         if (chosen == AppLanguageStore.Load()) return;

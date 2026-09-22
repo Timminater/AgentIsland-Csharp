@@ -73,6 +73,31 @@ jobs:
         run: |
           dotnet test .\AgentIsland.sln --configuration Release --no-build --filter "FullyQualifiedName~AgentStressAndResourceTests" --logger "trx;LogFileName=stress-tests.trx" --results-directory TestResults
 
+      - name: Render UI snapshot sweep
+        shell: pwsh
+        env:
+          AGENTISLAND_DEMO: 1
+          AGENTISLAND_DATA_DIR: ${{ runner.temp }}/agentisland-snapshot-data
+          AGENTISLAND_CACHE_DIR: ${{ runner.temp }}/agentisland-snapshot-cache
+          AGENTISLAND_SNAPSHOT_DIR: ${{ runner.temp }}/agentisland-snapshots
+        run: |
+          & .\src\AgentIsland\bin\Release\net8.0-windows\AgentIsland.exe
+          $required = @(
+            "approval-permission.png", "approval-question.png", "approval-plan.png",
+            "transcripts.png", "dialog-deepseek.png", "settings-7-about.png"
+          )
+          foreach ($name in $required) {
+            $path = Join-Path $env:AGENTISLAND_SNAPSHOT_DIR $name
+            if (-not (Test-Path -LiteralPath $path)) { throw "Missing UI snapshot: $name" }
+          }
+
+      - name: Upload UI snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-snapshots
+          path: ${{ runner.temp }}/agentisland-snapshots/*.png
+          if-no-files-found: error
+
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -110,16 +135,18 @@ jobs:
           if (-not (Test-Path -LiteralPath $asset)) {
             throw "Expected release asset was not created: $asset"
           }
+          $digest = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $(Split-Path -Leaf $asset)" | Out-File -LiteralPath "$asset.sha256" -Encoding ascii
 
           # Check if release tag already exists
           $exists = gh release view "$env:RELEASE_TAG" 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Release $env:RELEASE_TAG already exists. Uploading asset and updating notes..."
-            gh release upload "$env:RELEASE_TAG" $asset --clobber
+            gh release upload "$env:RELEASE_TAG" $asset "$asset.sha256" --clobber
             gh release edit "$env:RELEASE_TAG" --notes-file "$env:NOTES_FILE" --title "AgentIsland $env:RELEASE_TAG"
           } else {
             Write-Host "Creating new GitHub release for $env:RELEASE_TAG..."
-            gh release create "$env:RELEASE_TAG" $asset `
+            gh release create "$env:RELEASE_TAG" $asset "$asset.sha256" `
               --title "AgentIsland $env:RELEASE_TAG" `
               --notes-file "$env:NOTES_FILE"
           }

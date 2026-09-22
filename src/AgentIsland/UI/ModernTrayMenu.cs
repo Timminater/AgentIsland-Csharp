@@ -37,7 +37,8 @@ public sealed class ModernTrayMenu
         Action openDailyReport,
         Action openWeeklyReport,
         Action openMonthlyReport,
-        Func<bool>? isTransparentModeQuery = null)
+        Func<bool>? isTransparentModeQuery = null,
+        Action? openTranscripts = null)
     {
         _isTransparentModeQuery = isTransparentModeQuery;
 
@@ -60,6 +61,10 @@ public sealed class ModernTrayMenu
         _menu.Items.Add(CreateItem(L10n.Tr("Daily report"), openDailyReport));
         _menu.Items.Add(CreateItem(L10n.Tr("Share weekly report…"), openWeeklyReport));
         _menu.Items.Add(CreateItem(L10n.Tr("Share monthly report…"), openMonthlyReport));
+        if (openTranscripts is not null)
+        {
+            _menu.Items.Add(CreateItem(L10n.Tr("Transcripts & diffs…"), openTranscripts));
+        }
         _menu.Items.Add(CreateSeparator());
 
         _menu.Items.Add(CreateItem(L10n.Tr("Settings…"), openSettings));

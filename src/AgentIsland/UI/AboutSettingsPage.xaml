@@ -59,7 +59,7 @@
                         <TextBlock x:Name="ForkRepoLabel"
                                    FontFamily="{x:Static charts:IslandFonts.Ui}" FontSize="12"
                                    Foreground="#9EFFFFFF" VerticalAlignment="Center" />
-                        <TextBlock Text="https://github.com/newton5555/AgentIsland-Csharp" Grid.Column="1"
+                        <TextBlock Text="https://github.com/Timminater/AgentIsland-Csharp" Grid.Column="1"
                                    FontFamily="{x:Static charts:IslandFonts.Ui}" FontSize="12"
                                    FontWeight="SemiBold" Foreground="#42A5F5" VerticalAlignment="Center" />
                         <TextBlock Text=" &#xE8A7;" Grid.Column="2" FontFamily="Segoe MDL2 Assets"

@@ -166,6 +166,8 @@ public sealed class ActivityMonitorConcurrencyTests
         public IReadOnlyList<DisplayProvider> SlotProviders => _enabled;
         public IReadOnlyList<DisplayProvider> Slots => _enabled;
         public IReadOnlyList<DisplayProvider> Order => _enabled;
+        public DisplayProvider? ActiveProvider => _enabled.Count > 0 ? _enabled[0] : null;
+        public void SetActiveProvider(DisplayProvider provider) { }
         public bool ClaudeVisible
         {
             get => _enabled.Contains(DisplayProvider.Claude);

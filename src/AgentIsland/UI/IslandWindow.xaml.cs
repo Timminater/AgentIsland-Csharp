@@ -100,6 +100,9 @@ public partial class IslandWindow : Window
     private readonly IGrokUsageStore _grokStore;
     private readonly ICursorUsageStore _cursorStore;
     private readonly IDeepSeekBalanceStore _balanceStore;
+    private readonly DepletionForecastSettingsStore _forecastSettings;
+    private readonly DepletionForecastTracker _forecastTracker;
+    private readonly RefreshIntervalStore _refreshIntervalStore;
     private System.Windows.Interop.HwndSource? _windowSource;
     private DispatcherTimer? _mouseHitTestTimer;
     private bool _mouseClickThrough;
@@ -122,9 +125,15 @@ public partial class IslandWindow : Window
     private System.Windows.Controls.TextBlock? _leftChip;
     private System.Windows.Controls.TextBlock? _rightChip;
 
-    /// What the two physical flanks currently carry. Any two of the six
-    /// providers can hold the slots (任选两家) — the elements keep their
-    /// historical Claude*/Codex* names but are retargeted per selection.
+    /// Approval pipeline (A1–A5): the card that renders a blocked agent's
+    /// prompt over the expanded panel, and the coordinator feeding it.
+    private AgentIsland.Backend.Interaction.IApprovalCoordinator? _approvalCoordinator;
+    private Interaction.ApprovalCard? _approvalCard;
+
+    /// What the two physical flanks currently carry. The bar renders exactly
+    /// one provider — the active one — as a solo split (logo on the left
+    /// flank, usage pill on the right); _rightTool stays null and exists only
+    /// so the solo/duo geometry helpers keep their original shape.
     private TriggerTool? _leftTool = TriggerTool.Claude;
     private TriggerTool? _rightTool = TriggerTool.Codex;
 
@@ -149,6 +158,10 @@ public partial class IslandWindow : Window
     {
         Interval = TimeSpan.FromSeconds(15),
     };
+    private readonly DispatcherTimer _forecastTimer = new()
+    {
+        Interval = TimeSpan.FromSeconds(30),
+    };
 
     public IslandWindow() : this(
         (App.Instance?.Services?.GetService(typeof(ViewModels.IslandViewModel)) as ViewModels.IslandViewModel) ?? new ViewModels.IslandViewModel(),
@@ -169,7 +182,10 @@ public partial class IslandWindow : Window
         App.Instance?.Services?.GetService(typeof(IAntigravityUsageStore)) as IAntigravityUsageStore,
         App.Instance?.Services?.GetService(typeof(IGrokUsageStore)) as IGrokUsageStore,
         App.Instance?.Services?.GetService(typeof(ICursorUsageStore)) as ICursorUsageStore,
-        App.Instance?.Services?.GetService(typeof(IDeepSeekBalanceStore)) as IDeepSeekBalanceStore)
+        App.Instance?.Services?.GetService(typeof(IDeepSeekBalanceStore)) as IDeepSeekBalanceStore,
+        App.Instance?.Services?.GetService(typeof(DepletionForecastSettingsStore)) as DepletionForecastSettingsStore,
+        App.Instance?.Services?.GetService(typeof(DepletionForecastTracker)) as DepletionForecastTracker,
+        App.Instance?.Services?.GetService(typeof(RefreshIntervalStore)) as RefreshIntervalStore)
     {
     }
 
@@ -192,7 +208,10 @@ public partial class IslandWindow : Window
         IAntigravityUsageStore? antigravityStore = null,
         IGrokUsageStore? grokStore = null,
         ICursorUsageStore? cursorStore = null,
-        IDeepSeekBalanceStore? balanceStore = null)
+        IDeepSeekBalanceStore? balanceStore = null,
+        DepletionForecastSettingsStore? forecastSettings = null,
+        DepletionForecastTracker? forecastTracker = null,
+        RefreshIntervalStore? refreshIntervalStore = null)
     {
         ViewModel = viewModel;
         _model = model;
@@ -213,6 +232,9 @@ public partial class IslandWindow : Window
         _grokStore = grokStore ?? (App.Instance?.Services?.GetService(typeof(IGrokUsageStore)) as IGrokUsageStore) ?? new GrokUsageStore(_visibilityStore);
         _cursorStore = cursorStore ?? (App.Instance?.Services?.GetService(typeof(ICursorUsageStore)) as ICursorUsageStore) ?? new CursorUsageStore(_visibilityStore);
         _balanceStore = balanceStore ?? (App.Instance?.Services?.GetService(typeof(IDeepSeekBalanceStore)) as IDeepSeekBalanceStore) ?? new DeepSeekBalanceStore(_visibilityStore);
+        _forecastSettings = forecastSettings ?? (App.Instance?.Services?.GetService(typeof(DepletionForecastSettingsStore)) as DepletionForecastSettingsStore) ?? new DepletionForecastSettingsStore();
+        _forecastTracker = forecastTracker ?? (App.Instance?.Services?.GetService(typeof(DepletionForecastTracker)) as DepletionForecastTracker) ?? new DepletionForecastTracker();
+        _refreshIntervalStore = refreshIntervalStore ?? (App.Instance?.Services?.GetService(typeof(RefreshIntervalStore)) as RefreshIntervalStore) ?? new RefreshIntervalStore();
 
         DataContext = ViewModel;
         InitializeComponent();
@@ -228,6 +250,8 @@ public partial class IslandWindow : Window
         SizeChanged += OnWindowSizeChanged;
         _idleCollapseTimer.Tick += (_, _) => OnIdleCollapseTick();
         _teardown.Add(_idleCollapseTimer.Stop);
+        _forecastTimer.Tick += (_, _) => UpdatePills();
+        _teardown.Add(_forecastTimer.Stop);
         PreviewMouseMove += (_, _) => ResetIdleTimer();
         PreviewMouseDown += (_, _) => ResetIdleTimer();
         PreviewMouseWheel += (_, _) => ResetIdleTimer();
@@ -488,8 +512,20 @@ public partial class IslandWindow : Window
         _teardown.Add(() => _grokStore.PropertyChanged -= onUsage);
         _cursorStore.PropertyChanged += onUsage;
         _teardown.Add(() => _cursorStore.PropertyChanged -= onUsage);
+        _balanceStore.PropertyChanged += onUsage;
+        _teardown.Add(() => _balanceStore.PropertyChanged -= onUsage);
         _quotaDisplayModeStore.PropertyChanged += onUsage;
         _teardown.Add(() => _quotaDisplayModeStore.PropertyChanged -= onUsage);
+
+        System.ComponentModel.PropertyChangedEventHandler onForecastSettings = (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            SyncForecastTimer();
+            UpdatePills();
+        });
+        _forecastSettings.PropertyChanged += onForecastSettings;
+        _teardown.Add(() => _forecastSettings.PropertyChanged -= onForecastSettings);
+        _refreshIntervalStore.PropertyChanged += onForecastSettings;
+        _teardown.Add(() => _refreshIntervalStore.PropertyChanged -= onForecastSettings);
 
         System.ComponentModel.PropertyChangedEventHandler onAlert = (_, args) =>
             QueueVisualUpdate(
@@ -532,6 +568,8 @@ public partial class IslandWindow : Window
 
         ApplyProviderVisibility();
         UpdateActivityVisuals();
+        ObserveDepletionSamples();
+        SyncForecastTimer();
         UpdatePills();
         SetState(IslandState.Peek);
         ResetIdleTimer();
@@ -559,13 +597,15 @@ public partial class IslandWindow : Window
         }
     }
 
-    /// Hidden providers drop their logo, peek pill, and expanded title —
-    /// the balanced peek width is preserved by the model's fixed slots.
+    /// Single-active model: the bar carries the active provider only — its
+    /// logo on the left flank and its usage pill on the right (the existing
+    /// solo split). Every other enabled+detected provider is reachable from
+    /// the hover switcher in the centre gap.
     private void ApplyProviderVisibility()
     {
-        var slots = _visibilityStore.Slots;
-        _leftTool = slots.Count > 0 ? slots[0].ToTriggerTool() : null;
-        _rightTool = slots.Count > 1 ? slots[1].ToTriggerTool() : null;
+        var active = _visibilityStore.ActiveProvider;
+        _leftTool = active?.ToTriggerTool();
+        _rightTool = null;
 
         if (_leftTool is { } left)
         {
@@ -581,25 +621,18 @@ public partial class IslandWindow : Window
             LeftPill.Opacity = 0;
         }
 
-        if (_rightTool is { } right)
-        {
-            RightLogo.Tool = right;
-            RightPill.Tool = right;
-            RightPill.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            RightPill.Visibility = Visibility.Collapsed;
-            RightPill.Inlines.Clear();
-            RightPill.BeginAnimation(OpacityProperty, null);
-            RightPill.Opacity = 0;
-        }
+        // The right flank is always empty now; the solo split moves the
+        // active pill across to it.
+        RightPill.Visibility = Visibility.Collapsed;
+        RightPill.Inlines.Clear();
+        RightPill.BeginAnimation(OpacityProperty, null);
+        RightPill.Opacity = 0;
 
         // DeepSeek's official endpoint reports an account currency balance,
         // not a percentage quota. Kick its short-lived balance cache whenever
-        // the provider claims a visible slot so the peek pill can paint the
-        // latest amount without waiting for another provider's refresh tick.
-        if (_leftTool == TriggerTool.DeepSeek || _rightTool == TriggerTool.DeepSeek)
+        // the provider is active so the peek pill can paint the latest amount
+        // without waiting for another provider's refresh tick.
+        if (_leftTool == TriggerTool.DeepSeek)
         {
             _balanceStore.KickRefresh();
         }
@@ -608,12 +641,91 @@ public partial class IslandWindow : Window
         // fade opacity (the macOS openMorph spring) rather than hard-toggle
         // Visibility — toggling a provider springs the mark in/out.
         FadeLogo(LeftLogo, _leftTool is not null);
-        FadeLogo(RightLogo, _rightTool is not null);
+        FadeLogo(RightLogo, false);
         RetitleFlank(_leftTitle, _leftTool);
-        RetitleFlank(_rightTitle, _rightTool);
+        RetitleFlank(_rightTitle, null);
+        RebuildSwitcher();
         ApplySoloSplit();
         UpdatePlanChips();
         UpdatePills();
+    }
+
+    /// Rebuild the hover switcher: one clickable icon per enabled+detected
+    /// provider, the active one highlighted. Rebuilt (not patched) because it
+    /// is at most six small elements and only changes on selection edits.
+    private void RebuildSwitcher()
+    {
+        ProviderSwitcher.Children.Clear();
+        var active = _visibilityStore.ActiveProvider;
+        foreach (var provider in _visibilityStore.Order)
+        {
+            if (!_visibilityStore.IsEnabled(provider) || !_visibilityStore.IsShown(provider)) continue;
+            ProviderSwitcher.Children.Add(MakeSwitcherIcon(provider, provider == active));
+        }
+        // A lone provider has nothing to switch to — keep the strip hidden.
+        if (ProviderSwitcher.Children.Count <= 1)
+        {
+            ProviderSwitcher.BeginAnimation(OpacityProperty, null);
+            ProviderSwitcher.Opacity = 0;
+            ProviderSwitcher.Visibility = Visibility.Collapsed;
+            ProviderSwitcher.IsHitTestVisible = false;
+        }
+    }
+
+    private System.Windows.FrameworkElement MakeSwitcherIcon(DisplayProvider provider, bool active)
+    {
+        var accent = ProviderIdentity.Accent(provider);
+        var mark = ProviderMarks.Mark(provider, 18, active ? 1.0 : 0.5);
+        var host = new System.Windows.Controls.Grid();
+        host.Children.Add(mark);
+
+        var tile = new System.Windows.Controls.Border
+        {
+            Width = 30,
+            Height = 28,
+            CornerRadius = new CornerRadius(8),
+            Margin = new Thickness(1, 0, 1, 0),
+            Background = active
+                ? new SolidColorBrush(IslandColors.Alpha(accent, 0.20))
+                : Brushes.Transparent,
+            Cursor = Cursors.Hand,
+            ToolTip = provider.DisplayName(),
+            Child = host,
+        };
+        tile.MouseEnter += (_, _) =>
+        {
+            if (!active) tile.Background = new SolidColorBrush(IslandColors.Alpha(accent, 0.12));
+        };
+        tile.MouseLeave += (_, _) =>
+        {
+            if (!active) tile.Background = Brushes.Transparent;
+        };
+        tile.MouseLeftButtonUp += (_, args) =>
+        {
+            // Handled so the silhouette's own click (expand) does not also run.
+            args.Handled = true;
+            _visibilityStore.SetActiveProvider(provider);
+        };
+        return tile;
+    }
+
+    /// Fade the switcher in/out. Only shown in Peek (the centre gap is too
+    /// narrow in Compact and is occupied by the panel titles in Expanded).
+    private void ShowSwitcher(bool visible)
+    {
+        var canSwitch = ProviderSwitcher.Children.Count > 1;
+        var target = visible && canSwitch ? 1.0 : 0.0;
+        ProviderSwitcher.IsHitTestVisible = target > 0;
+        if (target > 0) ProviderSwitcher.Visibility = Visibility.Visible;
+        var fade = new DoubleAnimation(target, TimeSpan.FromMilliseconds(160))
+        {
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+        };
+        fade.Completed += (_, _) =>
+        {
+            if (target == 0) ProviderSwitcher.Visibility = Visibility.Collapsed;
+        };
+        ProviderSwitcher.BeginAnimation(OpacityProperty, fade);
     }
 
     /// Expanded-panel flank title follows its slot's provider.
@@ -638,6 +750,17 @@ public partial class IslandWindow : Window
         logo.IsHitTestVisible = visible;
     }
 
+    /// A blocked agent must come forward: refresh the card and open the panel
+    /// the first time a prompt arrives. Collapsing stays the user's call (or
+    /// the idle timer), so answering never yanks the panel away mid-read.
+    private void OnApprovalChanged()
+    {
+        _approvalCard?.Refresh();
+        if (_approvalCoordinator?.HasPending != true) return;
+        if (_model.State == IslandState.Expanded) return;
+        PopUp();
+    }
+
     /// Pages + footer inside the expanded area; provider titles + plan chips
     /// in the top strip (visible only when expanded, exactly like the macOS
     /// PanelHeader living beside the notch).
@@ -650,6 +773,29 @@ public partial class IslandWindow : Window
         var footer = new PanelFooter();
         System.Windows.Controls.Grid.SetRow(footer, 1);
         ExpandedContent.Children.Add(footer);
+
+        // Approval overlay (A1–A5): sits above the pages/footer and only
+        // materialises while an agent is blocked on the user.
+        _approvalCoordinator = App.Instance?.Services?.GetService(
+            typeof(AgentIsland.Backend.Interaction.IApprovalCoordinator))
+            as AgentIsland.Backend.Interaction.IApprovalCoordinator;
+        if (_approvalCoordinator is not null)
+        {
+            _approvalCard = new Interaction.ApprovalCard(_approvalCoordinator);
+            System.Windows.Controls.Grid.SetRow(_approvalCard, 0);
+            System.Windows.Controls.Grid.SetRowSpan(_approvalCard, 2);
+            ExpandedContent.Children.Add(_approvalCard);
+            _approvalCard.Resolved += () =>
+            {
+                if (_approvalCoordinator.HasPending) return;
+                if (_model.State == IslandState.Expanded) SetState(IslandState.Compact);
+            };
+            System.ComponentModel.PropertyChangedEventHandler onApproval =
+                (_, _) => Dispatcher.BeginInvoke(OnApprovalChanged);
+            _approvalCoordinator.PropertyChanged += onApproval;
+            _teardown.Add(() => _approvalCoordinator.PropertyChanged -= onApproval);
+            _approvalCard.Refresh();
+        }
 
         // Titles live in the center column, hugging the logo tabs on each
         // side — the macOS PanelHeader arrangement.
@@ -1192,8 +1338,10 @@ public partial class IslandWindow : Window
         switch (state)
         {
             case IslandState.Peek:
-                // Shape commits first, pills follow.
+                // Shape commits first, pills follow; the switcher fades in
+                // with them so a hover reveals the whole provider set.
                 FadePills(visible: true, delayMs: 60, seconds: 0.18);
+                ShowSwitcher(true);
                 break;
             case IslandState.Expanded:
                 ShowExpandedContent();
@@ -1204,11 +1352,14 @@ public partial class IslandWindow : Window
                 // Pills travel with the growing shape, then cross-fade out
                 // after the expanded content has settled.
                 FadePills(visible: false, delayMs: 250, seconds: 0.18);
+                // The centre gap carries the panel titles in this state.
+                ShowSwitcher(false);
                 StartPanelHeartbeat();
                 break;
             case IslandState.Compact:
             default:
                 FadePills(visible: _alwaysShowStore.Enabled, delayMs: 0, seconds: 0.08);
+                ShowSwitcher(false);
                 HideExpandedContent();
                 break;
         }
@@ -2007,14 +2158,17 @@ public partial class IslandWindow : Window
     {
         var store = _balanceStore;
         var snapshot = store.Snapshot;
+        var forecast = BalanceForecast(snapshot);
         pill.UpdateBalance(
             snapshot is null ? null : DeepSeekBalanceText.Total(snapshot),
             store.Loading,
-            unavailable: snapshot is { IsAvailable: false } || store.ErrorCaption is not null);
+            unavailable: snapshot is { IsAvailable: false } || store.ErrorCaption is not null,
+            forecast: forecast);
     }
 
     private void UpdatePills()
     {
+        ObserveDepletionSamples();
         var engine = _alertEngine;
         var leftHasPill = HasPill(_leftTool);
         if (leftHasPill && _leftTool is { } left)
@@ -2028,7 +2182,8 @@ public partial class IslandWindow : Window
                 LeftPill.Update(
                     UsagePage.UsageFor(left.ToDisplayProvider(), _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour,
                     IsToolLoading(left),
-                    engine.SeverityFor(left));
+                    engine.SeverityFor(left),
+                    QuotaForecast(left));
             }
         }
         else
@@ -2049,7 +2204,8 @@ public partial class IslandWindow : Window
                 RightPill.Update(
                     UsagePage.UsageFor(right.ToDisplayProvider(), _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour,
                     IsToolLoading(right),
-                    engine.SeverityFor(right));
+                    engine.SeverityFor(right),
+                    QuotaForecast(right));
             }
         }
         else
@@ -2081,6 +2237,88 @@ public partial class IslandWindow : Window
             if (!leftHasPill) LeftPill.Visibility = Visibility.Collapsed;
             if (!rightHasPill) RightPill.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void SyncForecastTimer()
+    {
+        if (_forecastSettings.Enabled)
+        {
+            if (!_forecastTimer.IsEnabled) _forecastTimer.Start();
+        }
+        else
+        {
+            _forecastTimer.Stop();
+        }
+    }
+
+    private void ObserveDepletionSamples()
+    {
+        ObserveQuota(
+            TriggerTool.Claude,
+            _usageStore.Claude.FiveHour,
+            _usageStore.LastUpdatedFor(DisplayProvider.Claude));
+        ObserveQuota(
+            TriggerTool.Codex,
+            _usageStore.Codex.FiveHour,
+            _usageStore.LastUpdatedFor(DisplayProvider.Codex));
+        ObserveQuota(
+            TriggerTool.Antigravity,
+            UsagePage.UsageFor(DisplayProvider.Antigravity, _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour,
+            _antigravityStore.LastUpdated);
+        ObserveQuota(
+            TriggerTool.Grok,
+            UsagePage.UsageFor(DisplayProvider.Grok, _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour,
+            _grokStore.LastUpdated);
+        ObserveQuota(
+            TriggerTool.Cursor,
+            UsagePage.UsageFor(DisplayProvider.Cursor, _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour,
+            _cursorStore.LastUpdated);
+
+        if (_balanceStore.LastUpdated is { } balanceAt
+            && _balanceStore.Snapshot is { Balances.Count: 1 } balanceSnapshot)
+        {
+            var balance = balanceSnapshot.Balances[0];
+            _forecastTracker.Observe(
+                DepletionForecastSeries.Balance(balance.Currency),
+                Math.Max(0, (double)balance.TotalBalance),
+                balanceAt);
+        }
+    }
+
+    private void ObserveQuota(TriggerTool tool, WindowUsage usage, DateTimeOffset? observedAt)
+    {
+        if (observedAt is not { } at || usage.HasError) return;
+        var remaining = Math.Clamp(1 - usage.UsedPercent, 0, 1);
+        _forecastTracker.Observe(DepletionForecastSeries.Quota(tool, usage), remaining, at);
+    }
+
+    private DepletionForecast? QuotaForecast(TriggerTool tool)
+    {
+        if (!_forecastSettings.Enabled) return null;
+        var usage = UsagePage.UsageFor(
+            tool.ToDisplayProvider(), _usageStore, _antigravityStore, _grokStore, _cursorStore).FiveHour;
+        var remaining = Math.Clamp(1 - usage.UsedPercent, 0, 1);
+        if (remaining <= 0 || remaining * 100 > _forecastSettings.ThresholdPercent) return null;
+        return _forecastTracker.Estimate(
+            DepletionForecastSeries.Quota(tool, usage),
+            DateTimeOffset.Now,
+            _forecastSettings.WindowMinutes,
+            _activityMonitor.StateFor(tool) == ActivityState.Working,
+            minimumWindowMinutes: (int)Math.Ceiling(_refreshIntervalStore.Seconds / 60d));
+    }
+
+    private DepletionForecast? BalanceForecast(
+        AgentIsland.Providers.Usage.DeepSeek.DeepSeekBalanceSnapshot? snapshot)
+    {
+        if (!_forecastSettings.Enabled || snapshot is not { Balances.Count: 1 }) return null;
+        var balance = snapshot.Balances[0];
+        if (balance.TotalBalance <= 0) return null;
+        return _forecastTracker.Estimate(
+            DepletionForecastSeries.Balance(balance.Currency),
+            DateTimeOffset.Now,
+            _forecastSettings.WindowMinutes,
+            _activityMonitor.StateFor(TriggerTool.DeepSeek) == ActivityState.Working,
+            minimumWindowMinutes: (int)Math.Ceiling(_refreshIntervalStore.Seconds / 60d));
     }
 
     /// First threshold crossing inside a reset window auto-peeks the pills

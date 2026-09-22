@@ -12,6 +12,7 @@ public interface IUsageStore : INotifyPropertyChanged
     AppUsage Codex { get; }
     AppUsage Usage(AgentIsland.UI.Providers.DisplayProvider provider);
     DateTimeOffset? LastUpdated { get; }
+    DateTimeOffset? LastUpdatedFor(AgentIsland.UI.Providers.DisplayProvider provider) => LastUpdated;
     string? RefreshWarning { get; }
     bool Loading { get; }
     bool ClaudeReauthInProgress { get; }

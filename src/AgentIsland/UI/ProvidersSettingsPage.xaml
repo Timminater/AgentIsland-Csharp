@@ -19,27 +19,11 @@
     </UserControl.Resources>
 
     <StackPanel Margin="14,18,14,6">
-        <!-- Slot Header -->
+        <!-- Provider Header: brand marks + "N / total". Any number may be
+             enabled; exactly one of them is active in the island bar and the
+             rest are reached from the hover switcher. -->
         <Grid Margin="10,0,10,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Slot Refusal Notice -->
-            <TextBlock x:Name="SlotNotice"
-                       Grid.Column="0"
-                       FontFamily="{x:Static charts:IslandFonts.Ui}"
-                       FontSize="11"
-                       Foreground="{StaticResource AlertAmberBrush}"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"
-                       Margin="0,0,10,0"
-                       Visibility="Collapsed" />
-
-            <!-- Capsule: Brand Marks + "N / 2" -->
-            <Border Grid.Column="1"
-                    CornerRadius="11"
+            <Border CornerRadius="11"
                     Background="#1AFFFFFF"
                     Padding="10,5,10,5"
                     HorizontalAlignment="Right">
@@ -73,6 +57,16 @@
         <ui:SettingsRowControl x:Name="TokenCountingRow"
                                Title="Token counting">
             <ui:Segmented x:Name="TokenCountSegmented" />
+        </ui:SettingsRowControl>
+
+        <!-- Approvals (A1–A5): install/remove the Claude Code hooks that let
+             the island answer a blocked agent. -->
+        <TextBlock Text="{x:Static ui:ProvidersSettingsPage.ApprovalsSectionLabel}"
+                   Style="{StaticResource SettingsSectionHeaderStyle}" />
+
+        <ui:SettingsRowControl x:Name="ApprovalsRow"
+                               Title="Claude Code approvals">
+            <ui:PillButtonControl x:Name="ApprovalsButton" />
         </ui:SettingsRowControl>
 
         <!-- Cost Freshness Strip -->

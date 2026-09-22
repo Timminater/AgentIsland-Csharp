@@ -20,22 +20,13 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
     private bool _isDeliberatelyHidden;
 
     [ObservableProperty]
-    private DisplayProvider? _leftProvider;
+    private DisplayProvider? _activeProvider;
 
     [ObservableProperty]
-    private DisplayProvider? _rightProvider;
+    private ActivityState _activeActivity = ActivityState.Idle;
 
     [ObservableProperty]
-    private ActivityState _leftActivity = ActivityState.Idle;
-
-    [ObservableProperty]
-    private ActivityState _rightActivity = ActivityState.Idle;
-
-    [ObservableProperty]
-    private string? _leftThreadTitle;
-
-    [ObservableProperty]
-    private string? _rightThreadTitle;
+    private string? _activeThreadTitle;
 
     [ObservableProperty]
     private bool _hasNeedsYou;
@@ -93,35 +84,25 @@ public sealed partial class IslandViewModel : ObservableObject, IDisposable
 
     public void RefreshState()
     {
+        // One active provider drives the bar and the expanded panel; the
+        // remaining enabled providers are reached from the hover switcher.
         var slots = _visibilityStore.SlotProviders;
-        LeftProvider = slots.Count > 0 ? slots[0] : null;
-        RightProvider = slots.Count > 1 ? slots[1] : null;
+        var active = slots.Count > 0 ? slots[0] : (DisplayProvider?)null;
+        ActiveProvider = active;
 
-        if (LeftProvider is { } p0)
+        if (active is { } provider)
         {
-            var t0 = p0.ToTriggerTool();
-            LeftActivity = _activityMonitor.StateFor(t0);
-            LeftThreadTitle = _activityMonitor.ThreadFor(t0)?.Label;
+            var tool = provider.ToTriggerTool();
+            ActiveActivity = _activityMonitor.StateFor(tool);
+            ActiveThreadTitle = _activityMonitor.ThreadFor(tool)?.Label;
         }
         else
         {
-            LeftActivity = ActivityState.Idle;
-            LeftThreadTitle = null;
+            ActiveActivity = ActivityState.Idle;
+            ActiveThreadTitle = null;
         }
 
-        if (RightProvider is { } p1)
-        {
-            var t1 = p1.ToTriggerTool();
-            RightActivity = _activityMonitor.StateFor(t1);
-            RightThreadTitle = _activityMonitor.ThreadFor(t1)?.Label;
-        }
-        else
-        {
-            RightActivity = ActivityState.Idle;
-            RightThreadTitle = null;
-        }
-
-        HasNeedsYou = LeftActivity == ActivityState.NeedsYou || RightActivity == ActivityState.NeedsYou;
+        HasNeedsYou = ActiveActivity == ActivityState.NeedsYou;
     }
 
     [RelayCommand]

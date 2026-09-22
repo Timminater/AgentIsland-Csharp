@@ -110,9 +110,9 @@ public class MvvmViewModelTests
 
         // 1. Pure Constructor Injection for IslandViewModel
         using var islandVm = new IslandViewModel(fakeVisibility, fakeActivity, fakeIslandModel);
-        Assert(islandVm.LeftProvider == DisplayProvider.Claude, "Injected LeftProvider should be Claude");
-        Assert(islandVm.LeftActivity == ActivityState.Working, "Injected LeftActivity should be Working");
-        Assert(islandVm.LeftThreadTitle == "Injected Task", "Injected LeftThreadTitle should match");
+        Assert(islandVm.ActiveProvider == DisplayProvider.Claude, "Injected ActiveProvider should be Claude");
+        Assert(islandVm.ActiveActivity == ActivityState.Working, "Injected ActiveActivity should be Working");
+        Assert(islandVm.ActiveThreadTitle == "Injected Task", "Injected ActiveThreadTitle should match");
         Assert(islandVm.State == IslandState.Compact, "Initial state should match fake IslandModel");
 
         islandVm.ToggleExpandCommand.Execute(null);
@@ -121,9 +121,12 @@ public class MvvmViewModelTests
 
         // 2. Pure Constructor Injection for UsagePageViewModel
         using var usageVm = new UsagePageViewModel(fakeVisibility, fakeUsage);
-        Assert(usageVm.LeftSlot != null, "LeftSlot should be populated from fakeVisibility");
-        Assert(usageVm.LeftSlot!.Provider == DisplayProvider.Claude, "LeftSlot provider should be Claude");
-        Assert(usageVm.LeftSlot!.Usage.FiveHour.UsedPercent == 0.75, "LeftSlot usage should reflect injected FakeUsageStore");
+        var leftSlot = usageVm.LeftSlot
+            ?? throw new InvalidOperationException("LeftSlot should be populated from fakeVisibility");
+        Assert(leftSlot.Provider == DisplayProvider.Claude, "LeftSlot provider should be Claude");
+        var leftUsage = leftSlot.Usage
+            ?? throw new InvalidOperationException("LeftSlot usage should be populated from fakeUsage");
+        Assert(leftUsage.FiveHour.UsedPercent == 0.75, "LeftSlot usage should reflect injected FakeUsageStore");
 
         usageVm.RefreshCommand.Execute(null);
         Assert(fakeUsage.RefreshCalled, "RefreshCommand should invoke Refresh on injected IUsageStore");
@@ -137,6 +140,8 @@ public class MvvmViewModelTests
         public IReadOnlyList<DisplayProvider> Slots => SlotProviders;
         public IReadOnlyList<DisplayProvider> Enabled => SlotProviders;
         public IReadOnlyList<DisplayProvider> Order => SlotProviders;
+        public DisplayProvider? ActiveProvider => SlotProviders.Count > 0 ? SlotProviders[0] : null;
+        public void SetActiveProvider(DisplayProvider provider) { }
         public bool ClaudeVisible { get; set; } = true;
         public bool CodexVisible { get; set; } = true;
         public bool ClaudeShown => ClaudeVisible;
@@ -162,7 +167,7 @@ public class MvvmViewModelTests
         public bool IsShown(DisplayProvider provider) => SlotProviders.Contains(provider);
         public bool IsEnabled(DisplayProvider provider) => SlotProviders.Contains(provider);
         public bool Toggle(DisplayProvider provider) => true;
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     internal sealed class FakeActivityMonitor : AgentIsland.Backend.Monitoring.IActivityMonitor
@@ -177,7 +182,7 @@ public class MvvmViewModelTests
         public void Start() { }
         public void Stop() { }
         public void ScanNow() { }
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     internal sealed class FakeIslandModel : IIslandModel
@@ -190,7 +195,7 @@ public class MvvmViewModelTests
         public Size Size => new Size(200, 36);
         public double CornerRadius => 14;
         public void NotifyAlwaysShowUsageChanged() { }
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     internal sealed class FakeUsageStore : AgentIsland.Backend.Usage.IUsageStore
@@ -216,7 +221,7 @@ public class MvvmViewModelTests
         public void ReauthenticateClaude() { }
         public bool ReauthenticateCodex() => true;
         public void ClearClaudeReauthFailure() { }
-        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged { add { } remove { } }
     }
 
     private static void Assert(bool condition, string message)

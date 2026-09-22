@@ -5,7 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:Background="Black"
-             Width="34" Height="19" Cursor="Hand">
+             Width="34" Height="19" Cursor="Hand" Focusable="True"
+             AutomationProperties.Name="Toggle setting">
     <Border x:Name="TrackBorder" Width="34" Height="19"
             CornerRadius="9.5" BorderThickness="1">
         <Ellipse x:Name="Dot" Width="15" Height="15"

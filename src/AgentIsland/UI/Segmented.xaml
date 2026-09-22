@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:Background="Black"
+             Focusable="True"
+             AutomationProperties.Name="Options"
              xmlns:charts="clr-namespace:AgentIsland.UI.Charts">
     <UserControl.Resources>
         <DataTemplate x:Key="SegmentItemTemplate">

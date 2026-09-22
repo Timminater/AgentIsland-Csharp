@@ -92,5 +92,53 @@
                 </Border>
             </Grid>
         </StackPanel>
+
+        <!-- Optional rate-based estimate shown beside the active provider's
+             percentage/balance. It remains hidden until enough real decline
+             has been observed. -->
+        <ui:SettingsRowControl Title="Time-to-empty countdown"
+                               Subtitle="Starts after two measurements; pauses hide stale estimates">
+            <ui:CobaltToggle x:Name="ForecastToggle" />
+        </ui:SettingsRowControl>
+
+        <StackPanel x:Name="ForecastHost" Margin="10,8,10,8">
+            <Grid Margin="0,5,0,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="ForecastThresholdLabel"
+                           FontFamily="{x:Static charts:IslandFonts.Ui}"
+                           FontSize="13" FontWeight="Medium"
+                           Foreground="#EBFFFFFF" VerticalAlignment="Center" />
+                <Border Grid.Column="1" CornerRadius="7" Background="#0DFFFFFF"
+                        BorderBrush="#1AFFFFFF" BorderThickness="0.5" Width="64" Height="28">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBox x:Name="ForecastThresholdField" Width="26"
+                                 FontFamily="{x:Static charts:IslandFonts.Mono}"
+                                 FontSize="11" FontWeight="SemiBold"
+                                 Foreground="#F2FFFFFF" Background="Transparent"
+                                 BorderThickness="0" TextAlignment="Center"
+                                 VerticalAlignment="Center" CaretBrush="White" />
+                        <TextBlock Text="%" FontFamily="{x:Static charts:IslandFonts.Mono}"
+                                   FontSize="11" Foreground="#8CFFFFFF" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Margin="0,5,0,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="ForecastWindowLabel"
+                           FontFamily="{x:Static charts:IslandFonts.Ui}"
+                           FontSize="13" FontWeight="Medium"
+                           Foreground="#EBFFFFFF" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" x:Name="ForecastWindowCombo"
+                          MinWidth="116" VerticalAlignment="Center"
+                          Style="{StaticResource DarkComboBoxStyle}" />
+            </Grid>
+        </StackPanel>
     </StackPanel>
 </UserControl>

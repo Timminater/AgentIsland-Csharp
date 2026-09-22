@@ -21,10 +21,11 @@ public sealed partial class SettingsWindow : Window
     public ViewModels.SettingsViewModel ViewModel { get; } = new();
     private static SettingsWindow? _open;
 
-    public static void Open()
+    public static void Open(string? tab = null)
     {
         if (_open is { } existing)
         {
+            existing.SelectByName(tab);
             WindowActivation.BringToFront(existing);
             return;
         }
@@ -32,6 +33,7 @@ public sealed partial class SettingsWindow : Window
         _open = window;
         window.Closed += (_, _) => _open = null;
         window.Show();
+        window.SelectByName(tab);
         WindowActivation.BringToFront(window);
 
         // Scripted verification: render the active tab's full content (past the
@@ -192,6 +194,7 @@ public sealed partial class SettingsWindow : Window
         Alerts,
         General,
         Status,
+        Notes,
         About,
     }
 
@@ -202,6 +205,7 @@ public sealed partial class SettingsWindow : Window
         Tab.Alerts => ("Alerts", "\uEA8F"),
         Tab.General => ("General", "\uE713"),
         Tab.Status => ("Status", "\uE890"),
+        Tab.Notes => ("Notes", "\uE70B"),
         Tab.About => ("About", "\uE946"),
         _ => (tab.ToString(), "\uE713"),
     };
@@ -279,22 +283,38 @@ public sealed partial class SettingsWindow : Window
     {
         VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "0");
         VersionPill.ToolTip = L10n.Tr("View Releases on GitHub");
+        VersionPill.Focusable = true;
+        System.Windows.Automation.AutomationProperties.SetName(VersionPill, L10n.Tr("View Releases on GitHub"));
         VersionPill.MouseEnter += (_, _) => VersionPill.Background = IslandColors.Brush(IslandColors.White(0.10));
         VersionPill.MouseLeave += (_, _) => VersionPill.Background = IslandColors.Brush(IslandColors.White(0.05));
         VersionPill.MouseLeftButtonUp += (_, args) =>
         {
             args.Handled = true;
-            AboutSettingsPage.OpenUrl("https://github.com/newton5555/AgentIsland-Csharp/releases");
+            AboutSettingsPage.OpenUrl("https://github.com/Timminater/AgentIsland-Csharp/releases");
+        };
+        VersionPill.KeyDown += (_, args) =>
+        {
+            if (args.Key is not (System.Windows.Input.Key.Enter or System.Windows.Input.Key.Space)) return;
+            AboutSettingsPage.OpenUrl("https://github.com/Timminater/AgentIsland-Csharp/releases");
+            args.Handled = true;
         };
 
         QuitText.Text = L10n.Tr("Quit");
         QuitPill.ToolTip = L10n.Tr("Quit AgentIsland");
+        QuitPill.Focusable = true;
+        System.Windows.Automation.AutomationProperties.SetName(QuitPill, L10n.Tr("Quit AgentIsland"));
         QuitPill.MouseEnter += (_, _) => QuitPill.Background = IslandColors.Brush(IslandColors.White(0.10));
         QuitPill.MouseLeave += (_, _) => QuitPill.Background = IslandColors.Brush(IslandColors.White(0.05));
         QuitPill.MouseLeftButtonUp += (_, args) =>
         {
             args.Handled = true;
             System.Windows.Application.Current.Shutdown();
+        };
+        QuitPill.KeyDown += (_, args) =>
+        {
+            if (args.Key is not (System.Windows.Input.Key.Enter or System.Windows.Input.Key.Space)) return;
+            System.Windows.Application.Current.Shutdown();
+            args.Handled = true;
         };
     }
 
@@ -323,6 +343,7 @@ public sealed partial class SettingsWindow : Window
             (Tab.Alerts, NavAlerts),
             (Tab.General, NavGeneral),
             (Tab.Status, NavStatus),
+            (Tab.Notes, NavNotes),
             (Tab.About, NavAbout),
         };
 
@@ -339,6 +360,14 @@ public sealed partial class SettingsWindow : Window
             var captured = tab;
             border.MouseLeftButtonUp += (_, args) =>
             {
+                Select(captured);
+                args.Handled = true;
+            };
+            border.Focusable = true;
+            System.Windows.Automation.AutomationProperties.SetName(border, L10n.Tr(face.Label));
+            border.KeyDown += (_, args) =>
+            {
+                if (args.Key is not (System.Windows.Input.Key.Enter or System.Windows.Input.Key.Space)) return;
                 Select(captured);
                 args.Handled = true;
             };
@@ -388,11 +417,17 @@ public sealed partial class SettingsWindow : Window
             Tab.Alerts => (UIElement)new AlertsSettingsPage(),
             Tab.General => (UIElement)new GeneralSettingsPage(),
             Tab.Status => (UIElement)new StatusSettingsPage(),
+            Tab.Notes => (UIElement)new NotesSettingsPage(),
             Tab.About => (UIElement)new AboutSettingsPage(),
             _ => (UIElement)new StackPanel(),
         };
         PageTitle.Text = L10n.Tr(TabFace(tab).Label);
         PageContent.Content = body;
         _scroll.ScrollToTop();
+    }
+
+    private void SelectByName(string? tab)
+    {
+        if (!string.IsNullOrWhiteSpace(tab) && Enum.TryParse<Tab>(tab, true, out var parsed)) Select(parsed);
     }
 }

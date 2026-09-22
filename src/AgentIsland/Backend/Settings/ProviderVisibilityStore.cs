@@ -7,17 +7,17 @@ using AgentIsland.Core.Usage;
 
 namespace AgentIsland.Backend.Settings;
 
-/// Which providers occupy the island's two silhouette slots, plus per-
-/// provider machine detection.
+/// Which providers are enabled for the island, which ONE of them is active,
+/// plus per-provider machine detection.
 ///
-/// The silhouette geometry is fixed at two tabs + two pills, so provider
-/// choice BINDS providers to those slots and never adds a third: turning a
-/// third one on is refused outright — never a silent eviction of an older
-/// pick.
+/// The bar renders a single active provider; every other enabled provider is
+/// reached from the hover switcher. Any number may therefore be enabled — the
+/// old two-slot cap and its refusal path are gone.
 public sealed class ProviderVisibilityStore : IProviderVisibilityStore
 {
     private const string EnabledKey = "AgentIsland.enabledProviders.v1";
     private const string OrderKey = "AgentIsland.providerOrder.v1";
+    private const string ActiveKey = "AgentIsland.activeProvider.v1";
     private const string ClaudeKey = "AgentIsland.claudeVisible";
     private const string CodexKey = "AgentIsland.codexVisible";
     private const string ClaudeTouchedKey = "AgentIsland.claudeVisibleTouched";
@@ -30,6 +30,7 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
     private List<DisplayProvider> _enabled;
     private IReadOnlyList<DisplayProvider> _order;
     private IReadOnlyList<DisplayProvider> _slots;
+    private DisplayProvider? _active;
     private bool _claudeTouched;
     private bool _codexTouched;
 
@@ -91,13 +92,17 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         }
 
         _slots = ComputeSlots();
+        _active = ResolveActive(_storage.Get<string?>(ActiveKey) is { } raw
+            ? DisplayProviders.Parse(raw)
+            : null);
     }
 
     // MARK: - Selection
 
     public IReadOnlyList<DisplayProvider> Order => _order;
 
-    /// The providers bound to the island slots, canonical order, max 2.
+    /// Every enabled provider, in user order. Any number may be enabled; the
+    /// active one is rendered in the bar and the rest sit in the switcher.
     public IReadOnlyList<DisplayProvider> Enabled => _enabled;
 
     public int SelectedCount => _enabled.Count;
@@ -113,6 +118,7 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         MarkTouched(provider);
         Persist();
         _slots = ComputeSlots();
+        _active = ResolveActive(_active);
         RaiseAll();
         return true;
     }
@@ -128,6 +134,7 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         _enabled = ProviderSelection.SanitizeEnabled(_enabled.Select(p => p.RawValue()), _order);
         Persist();
         _slots = ComputeSlots();
+        _active = ResolveActive(_active);
         RaiseAll();
     }
 
@@ -138,11 +145,27 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
 
     // MARK: - What the island renders
 
-    /// Slot occupants after detection has had its say, canonical order. Left
-    /// slot first, right slot second; a single entry means the solo layout.
-    public IReadOnlyList<DisplayProvider> SlotProviders => _slots;
+    /// The one provider the island renders (the hover switcher reaches the
+    /// rest). Empty when nothing is enabled+detected, otherwise exactly one.
+    public IReadOnlyList<DisplayProvider> SlotProviders =>
+        ActiveProvider is { } active ? new[] { active } : Array.Empty<DisplayProvider>();
 
-    public DisplayProvider? SoloSlotProvider => _slots.Count == 1 ? (DisplayProvider?)_slots[0] : null;
+    public DisplayProvider? SoloSlotProvider => ActiveProvider;
+
+    /// The single provider the bar and expanded panel show. Falls back to the
+    /// first shown selection when the persisted pick is no longer available,
+    /// and is null only when nothing is enabled+detected.
+    public DisplayProvider? ActiveProvider => _active;
+
+    /// Make `provider` active. Ignored when it is not currently shown, so a
+    /// stale UI click can never select a disabled/hidden provider.
+    public void SetActiveProvider(DisplayProvider provider)
+    {
+        if (!_slots.Contains(provider) || _active == provider) return;
+        _active = provider;
+        if (!AppEnvironment.IsDemo) _storage.Set(ActiveKey, provider.RawValue());
+        RaiseAll();
+    }
 
     public bool IsShown(DisplayProvider provider)
     {
@@ -185,6 +208,7 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         }
         if (!changed) return;
         _slots = ComputeSlots();
+        _active = ResolveActive(_active);
         RaiseAll();
     }
 
@@ -210,8 +234,9 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         set => SetEnabled(DisplayProvider.Codex, value);
     }
 
-    /// The providers occupying the island's two flanks, in slot order.
-    public IReadOnlyList<DisplayProvider> Slots => ComputeSlots();
+    /// The providers occupying the island's flanks. With the single-active
+    /// model this is the active provider alone (0 or 1 entry).
+    public IReadOnlyList<DisplayProvider> Slots => SlotProviders;
 
     /// What the island actually renders.
     public bool ClaudeShown => IsShown(DisplayProvider.Claude);
@@ -274,6 +299,14 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
 
     private IReadOnlyList<DisplayProvider> ComputeSlots() => _enabled.Where(IsShown).ToList();
 
+    /// Keep the active pick inside the shown set; a disabled/undetected pick
+    /// (or an empty selection) falls back to the first shown provider.
+    private DisplayProvider? ResolveActive(DisplayProvider? candidate)
+    {
+        if (_slots.Count == 0) return null;
+        return candidate is { } c && _slots.Contains(c) ? c : _slots[0];
+    }
+
     private void MarkTouched(DisplayProvider provider)
     {
         if (AppEnvironment.IsDemo) return;
@@ -310,6 +343,7 @@ public sealed class ProviderVisibilityStore : IProviderVisibilityStore
         {
             nameof(Enabled),
             nameof(SelectedCount),
+            nameof(ActiveProvider),
             nameof(SlotProviders),
             nameof(SoloSlotProvider),
             nameof(ClaudeVisible),

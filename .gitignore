@@ -14,3 +14,6 @@ out_test/
 .tmp/
 *.log
 /.verify-release-build
+
+# Local credentials must never enter source control.
+/.keys.txt

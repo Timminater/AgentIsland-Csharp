@@ -91,4 +91,19 @@ public sealed partial class Segmented : UserControl
             e.Handled = true;
         }
     }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        var next = e.Key switch
+        {
+            Key.Left or Key.Up => _selected - 1,
+            Key.Right or Key.Down => _selected + 1,
+            _ => _selected,
+        };
+        if (next == _selected || next < 0 || next >= _items.Count) return;
+        Select(next);
+        SelectionChanged?.Invoke(next);
+        e.Handled = true;
+    }
 }

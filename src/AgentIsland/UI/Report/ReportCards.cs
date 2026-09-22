@@ -325,7 +325,12 @@ public static partial class ReportCards
         var stack = new StackPanel();
         var active = providers.Where(p => p.Tokens > 0).ToList();
 
-        if (active.Count >= 2)
+        if (active.Count > 2)
+        {
+            RenderProviderShares(stack, active, contentWidth, beamX0, beamWidth);
+            return stack;
+        }
+        if (active.Count == 2)
         {
             RenderDuel(stack, active[0], active[1], contentWidth, beamX0, beamWidth, beamY);
             return stack;
@@ -342,6 +347,80 @@ public static partial class ReportCards
             RenderEmptyStage(stack, contentWidth, beamX0, beamWidth, zh);
             return stack;
         }
+    }
+
+    private static void RenderProviderShares(
+        StackPanel stack,
+        IReadOnlyList<ProviderPeriodSlice> providers,
+        double contentWidth,
+        double beamX0,
+        double beamWidth)
+    {
+        var total = (double)providers.Sum(provider => provider.Tokens);
+        var canvas = new Canvas { Width = contentWidth, Height = 38 };
+        stack.Children.Add(canvas);
+
+        var track = new Border
+        {
+            Width = beamWidth,
+            Height = DuelBeamHeight,
+            CornerRadius = new CornerRadius(3),
+            Background = IslandColors.Brush(IslandColors.White(0.08)),
+        };
+        Canvas.SetLeft(track, beamX0);
+        Canvas.SetTop(track, 15);
+        canvas.Children.Add(track);
+
+        var x = beamX0;
+        foreach (var provider in providers)
+        {
+            var share = total > 0 ? provider.Tokens / total : 0;
+            var width = beamWidth * share;
+            if (width <= 0) continue;
+            var segment = new Border
+            {
+                Width = width,
+                Height = DuelBeamHeight,
+                Background = IslandColors.Brush(ProviderIdentity.Accent(provider.Provider)),
+            };
+            Canvas.SetLeft(segment, x);
+            Canvas.SetTop(segment, 15);
+            canvas.Children.Add(segment);
+            x += width;
+        }
+
+        var legend = new WrapPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 2, 0, 0),
+        };
+        foreach (var provider in providers)
+        {
+            var share = total > 0 ? provider.Tokens / total : 0;
+            var item = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(5, 2, 5, 2),
+            };
+            item.Children.Add(new Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = IslandColors.Brush(ProviderIdentity.Accent(provider.Provider)),
+                Margin = new Thickness(0, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            item.Children.Add(Numeric(new TextBlock
+            {
+                Text = $"{ProviderIdentity.DisplayName(provider.Provider)} {Core.Formatting.PercentInt(share)}%",
+                FontFamily = IslandFonts.Ui,
+                FontSize = 9.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = IslandColors.Brush(IslandColors.White(0.72)),
+            }));
+            legend.Children.Add(item);
+        }
+        stack.Children.Add(legend);
     }
 
     private static void RenderDuel(
@@ -425,10 +504,10 @@ public static partial class ReportCards
             FontSize = 11,
             FontWeight = FontWeights.SemiBold,
             Foreground = IslandColors.Brush(IslandColors.White(0.35)),
-            Width = 120,
+            Width = contentWidth,
             TextAlignment = TextAlignment.Center,
         };
-        Canvas.SetLeft(emptyText, contentWidth / 2 - 60);
+        Canvas.SetLeft(emptyText, 0);
         Canvas.SetTop(emptyText, 10);
         canvas.Children.Add(emptyText);
 

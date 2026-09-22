@@ -16,11 +16,23 @@ public class DeepSeekBalanceTests
 
     internal static void RunAll()
     {
-        TestOfficialResponse();
-        TestDebtResponse();
-        TestMissingOptionalAmounts();
-        TestCredentialsYaml();
-        TestBalancePillRendering();
+        // The pill copy is asserted in English; pin it so a non-English host
+        // locale (Auto follows the UI culture) cannot flip the expectation.
+        var originalLanguage = AgentIsland.UI.Localization.L10n.Current;
+        AgentIsland.UI.Localization.L10n.Current = AgentIsland.UI.Localization.L10n.Language.English;
+        try
+        {
+            TestOfficialResponse();
+            TestDebtResponse();
+            TestMissingOptionalAmounts();
+            TestCredentialsYaml();
+            TestBalancePillRendering();
+            TestForecastPillRendering();
+        }
+        finally
+        {
+            AgentIsland.UI.Localization.L10n.Current = originalLanguage;
+        }
         Console.WriteLine("DeepSeekBalanceTests GREEN");
     }
 
@@ -137,7 +149,62 @@ public class DeepSeekBalanceTests
             pill.Inlines.OfType<System.Windows.Documents.Run>().Select(run => run.Text ?? string.Empty));
         Expect(loadingText == "…",
             "DeepSeek pill must show a loading marker before the first balance arrives");
+
+        // With an amount on the pill the billing phase rides along as a dot;
+        // the words live in the tooltip so the amount keeps the slot's width.
+        pill.UpdateBalance("$18.71", loading: false);
+        var balanceText = string.Concat(
+            pill.Inlines.OfType<System.Windows.Documents.Run>().Select(run => run.Text ?? string.Empty));
+        var nowPeak = AgentIsland.Providers.Usage.DeepSeek.DeepSeekPeakHours.IsPeak(DateTimeOffset.Now);
+        Expect(balanceText.StartsWith("$18.71", StringComparison.Ordinal),
+            $"the amount must lead the pill, unclipped (got '{balanceText}')");
+        Expect(balanceText.Contains("●", StringComparison.Ordinal),
+            "the phase must carry its colour dot");
+        var phase = AgentIsland.UI.Localization.L10n.Tr(nowPeak ? "Peak hours" : "Off-peak");
+        Expect(pill.ToolTip is string tip && tip.Contains(phase, StringComparison.OrdinalIgnoreCase),
+            "the pill tooltip must name the live peak/off-peak phase");
+
+        // The compact bar gives the pill a 104-DIP slot with 20 DIP of margin
+        // on the solo split. The pill must fit the amount plus its phase dot
+        // without the slot clipping the leading characters — the regression
+        // that showed only the cents of "$18.71".
+        var compact = new NotchPeekPill { Tool = TriggerTool.DeepSeek, Mirrored = true };
+        compact.UpdateBalance("$18.71", loading: false);
+        compact.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+        var pillWidth = compact.DesiredSize.Width;
+        Expect(pillWidth <= 84,
+            $"the DeepSeek pill must fit its compact slot (got {pillWidth:0.#} DIP, budget 84)");
+        Console.WriteLine($"PASS DeepSeek pill fits the compact slot ({pillWidth:0.#} DIP of 84)");
         Console.WriteLine("PASS DeepSeek balance pill renders amount, warning, and loading states");
+    }
+
+    private static void TestForecastPillRendering()
+    {
+        var forecast = new DepletionForecast(
+            TimeSpan.FromMinutes(42),
+            DateTimeOffset.Now.AddMinutes(42),
+            15,
+            Automatic: false);
+        var quota = new NotchPeekPill { Tool = TriggerTool.Codex, Mirrored = true };
+        quota.Update(new AgentIsland.Core.Usage.WindowUsage(0.88, DateTimeOffset.Now.AddHours(2), null),
+            loading: false, forecast: forecast);
+        var quotaText = string.Concat(
+            quota.Inlines.OfType<System.Windows.Documents.Run>().Select(run => run.Text ?? string.Empty));
+        Expect(quotaText.Contains("≈42m", StringComparison.Ordinal),
+            $"quota forecast must be compact beside the percentage (got '{quotaText}')");
+        Expect(!quotaText.Contains("2h", StringComparison.Ordinal),
+            "time-to-empty must replace the reset countdown while active");
+
+        var balance = new NotchPeekPill { Tool = TriggerTool.DeepSeek, Mirrored = true };
+        balance.UpdateBalance("$3.20", loading: false, forecast: forecast);
+        var balanceText = string.Concat(
+            balance.Inlines.OfType<System.Windows.Documents.Run>().Select(run => run.Text ?? string.Empty));
+        Expect(balanceText.Contains("≈42m", StringComparison.Ordinal)
+               && balanceText.Contains("$3.20", StringComparison.Ordinal),
+            $"balance forecast must retain amount and estimate (got '{balanceText}')");
+        Expect(!balanceText.Contains("●", StringComparison.Ordinal),
+            "forecast should take the compact phase-dot slot");
+        Console.WriteLine("PASS quota and balance pills render compact depletion forecasts");
     }
 
     private static void Expect(bool condition, string message)

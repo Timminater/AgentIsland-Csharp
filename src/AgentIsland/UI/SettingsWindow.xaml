@@ -111,7 +111,18 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- 6. About -->
+                        <!-- 6. Release notes and product guide -->
+                        <Border x:Name="NavNotes" Tag="Notes" CornerRadius="7" Padding="10,7,10,7" Margin="8,1,8,1"
+                                Background="Transparent" Cursor="Hand" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE70B;" FontFamily="Segoe MDL2 Assets" FontSize="12" Width="16"
+                                           TextAlignment="Center" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="Notes" FontFamily="{x:Static charts:IslandFonts.Ui}" FontSize="12"
+                                           FontWeight="Medium" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 7. About -->
                         <Border x:Name="NavAbout" Tag="About" CornerRadius="7" Padding="10,7,10,7" Margin="8,1,8,1"
                                 Background="Transparent" Cursor="Hand" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal">
@@ -169,7 +180,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ui:DottedLink x:Name="GithubLink" Grid.Column="0"
-                                   Title="GitHub" Url="https://github.com/newton5555/AgentIsland-Csharp"
+                                   Title="GitHub" Url="https://github.com/Timminater/AgentIsland-Csharp"
                                    VerticalAlignment="Center"
                                    shell:WindowChrome.IsHitTestVisibleInChrome="True" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal">

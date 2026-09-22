@@ -29,6 +29,16 @@ public sealed class CostPage : Border
     private readonly CostStylePreferenceStore _costStyleStore;
     private readonly IProviderVisibilityStore _visibilityStore;
 
+    /// Compact rows for every enabled provider that is not the active one.
+    private readonly StackPanel _othersStrip = new()
+    {
+        Orientation = Orientation.Horizontal,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(0, 10, 0, 0),
+        Visibility = Visibility.Collapsed,
+    };
+
     /// How a provider's slot presents AgentIsland.Backend.Cost. Claude/Codex are table-priced and
     /// Grok self-reports dollars, so all three show a full dollar tile; Cursor
     /// has token counts but no model and therefore no price, so its tile reads
@@ -63,6 +73,9 @@ public sealed class CostPage : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // Row 0 carries the active provider; row 1 the compact rest strip.
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var hairline = new Border
         {
@@ -101,6 +114,11 @@ public sealed class CostPage : Border
             _badges[provider] = badge;
             grid.Children.Add(badge);
         }
+
+        // The compact "rest" strip sits under the active provider's column.
+        Grid.SetRow(_othersStrip, 1);
+        Grid.SetColumnSpan(_othersStrip, 3);
+        grid.Children.Add(_othersStrip);
 
         static void Show(UIElement element, int column)
         {
@@ -142,6 +160,7 @@ public sealed class CostPage : Border
             }
 
             hairline.Visibility = slots.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            RebuildOthers(slots);
         }
 
         // PagedContent recreates this page on visibility/screen changes;
@@ -170,6 +189,52 @@ public sealed class CostPage : Border
         {
             block.Update(_costStore.Summary(provider), _costStyleStore.Style);
         }
+    }
+
+    /// Compact one-line rows for every enabled+detected provider that is not
+    /// the active one, shown under the active provider's full-size column.
+    private void RebuildOthers(IReadOnlyList<DisplayProvider> slots)
+    {
+        _othersStrip.Children.Clear();
+        var active = slots.Count > 0 ? slots[0] : (DisplayProvider?)null;
+        foreach (var provider in _visibilityStore.Enabled)
+        {
+            if (provider == active || !_visibilityStore.IsShown(provider)) continue;
+            _othersStrip.Children.Add(MakeCompactRow(provider));
+        }
+        _othersStrip.Visibility = _othersStrip.Children.Count > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private UIElement MakeCompactRow(DisplayProvider provider)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 18, 0),
+        };
+        row.Children.Add(ProviderMarks.Mark(provider, 12, 0.85));
+        row.Children.Add(new TextBlock
+        {
+            Text = provider.DisplayName(),
+            FontFamily = IslandFonts.Ui,
+            FontSize = 11,
+            FontWeight = FontWeights.Medium,
+            Foreground = IslandColors.Brush(IslandColors.White(0.75)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 8, 0),
+        });
+        row.Children.Add(new TextBlock
+        {
+            Text = Core.Formatting.CompactTokens(_costStore.Summary(provider).TodayTokens),
+            FontFamily = IslandFonts.Mono,
+            FontSize = 11,
+            Foreground = IslandColors.Brush(IslandColors.White(0.5)),
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+        return row;
     }
 }
 

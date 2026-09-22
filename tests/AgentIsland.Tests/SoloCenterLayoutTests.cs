@@ -4,9 +4,9 @@ using AgentIsland.UI;
 
 namespace AgentIsland.Tests;
 
-/// Pins the solo-split geometry: a lone visible provider
-/// never narrows the bar — the full symmetric width stays.
-/// SoloProvider reports which tool is alone; both-visible and both-hidden report null.
+/// Pins the solo-split geometry: the bar renders exactly ONE active provider
+/// (the rest live in the hover switcher), so SoloProvider always reports the
+/// active pick and never narrows the bar — the full symmetric width stays.
 /// A single pick is always left-justified.
 [Collection("SettingsDiskTests")]
 public class SoloCenterLayoutTests
@@ -35,8 +35,18 @@ public class SoloCenterLayoutTests
             visibility.ClaudeVisible = true;
             visibility.CodexVisible = true;
 
-            Expect(model.SoloProvider is null, "two visible providers are not solo");
+            // With several enabled the bar still shows one active provider.
+            Expect(model.SoloProvider == TriggerTool.Claude,
+                "the active provider (Claude leads the order) is the solo one");
             Expect(model.Size.Width == 92, $"symmetric top bar must be 16+38*2, got {model.Size.Width}");
+
+            // Switching the active provider moves the solo mark without
+            // changing the width.
+            visibility.SetActiveProvider(DisplayProvider.Codex);
+            Expect(model.SoloProvider == TriggerTool.Codex,
+                "SetActiveProvider must move the solo mark to the new active provider");
+            Expect(model.Size.Width == 92, $"switching the active provider keeps 92, got {model.Size.Width}");
+            visibility.SetActiveProvider(DisplayProvider.Claude);
 
             visibility.CodexVisible = false;
             Expect(model.SoloProvider == TriggerTool.Claude, "Claude alone reports solo Claude");
@@ -51,7 +61,7 @@ public class SoloCenterLayoutTests
             Console.WriteLine("PASS solo is width-stable");
 
             visibility.CodexVisible = false;
-            Expect(model.SoloProvider is null, "both hidden is not solo");
+            Expect(model.SoloProvider is null, "nothing enabled is not solo");
             Expect(model.Size.Width == 92, $"both-hidden keeps symmetric width, got {model.Size.Width}");
             Console.WriteLine("PASS both-hidden stays symmetric");
 

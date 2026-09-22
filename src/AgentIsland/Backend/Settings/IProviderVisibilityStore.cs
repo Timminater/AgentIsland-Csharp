@@ -9,6 +9,14 @@ namespace AgentIsland.Backend.Settings;
 /// </summary>
 public interface IProviderVisibilityStore : INotifyPropertyChanged
 {
+    /// The single provider the island bar and expanded panel render. Null only
+    /// when nothing is enabled/shown. The rest of the selection stays
+    /// reachable through the hover switcher.
+    DisplayProvider? ActiveProvider { get; }
+
+    /// Make `provider` the active one. Ignored when it is not enabled/shown.
+    void SetActiveProvider(DisplayProvider provider);
+
     IReadOnlyList<DisplayProvider> SlotProviders { get; }
     IReadOnlyList<DisplayProvider> Slots { get; }
     IReadOnlyList<DisplayProvider> Enabled { get; }

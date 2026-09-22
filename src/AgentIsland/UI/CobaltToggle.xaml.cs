@@ -84,6 +84,15 @@ public sealed partial class CobaltToggle : UserControl
         e.Handled = true;
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key is not (Key.Space or Key.Enter)) return;
+        IsOn = !IsOn;
+        Toggled?.Invoke(IsOn);
+        e.Handled = true;
+    }
+
     /// The knob SLIDES and the washes crossfade (macOS SettingsToggle
     /// spring ~0.3s) — the first paint lands instantly so a freshly built
     /// settings page doesn't ripple with settling toggles.

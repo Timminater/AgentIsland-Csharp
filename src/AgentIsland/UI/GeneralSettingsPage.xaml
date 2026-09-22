@@ -23,12 +23,13 @@
         <!-- Language -->
         <ui:SettingsRowControl Title="Language">
             <ComboBox x:Name="LanguageCombo"
-                      Width="130"
+                      MinWidth="176"
                       VerticalAlignment="Center"
                       Style="{StaticResource DarkComboBoxStyle}">
                 <ComboBoxItem Content="Auto (system)" />
                 <ComboBoxItem Content="English" />
                 <ComboBoxItem Content="简体中文" />
+                <ComboBoxItem Content="Nederlands" />
             </ComboBox>
         </ui:SettingsRowControl>
 

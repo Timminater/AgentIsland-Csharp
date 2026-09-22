@@ -476,7 +476,7 @@ public sealed record DailyReportData(
         if (previous <= 0) return "—";
         var percent = (current - previous) * 100.0 / previous;
         var arrow = percent >= 0 ? "↑" : "↓";
-        return $"{arrow} {Math.Abs(percent):F1}%";
+        return $"{arrow} {Math.Abs(percent).ToString("F1", Localization.L10n.NumberCulture)}%";
     }
 }
 
