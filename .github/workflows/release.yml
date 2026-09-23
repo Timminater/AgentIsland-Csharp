@@ -81,7 +81,12 @@ jobs:
           AGENTISLAND_CACHE_DIR: ${{ runner.temp }}/agentisland-snapshot-cache
           AGENTISLAND_SNAPSHOT_DIR: ${{ runner.temp }}/agentisland-snapshots
         run: |
-          & .\src\AgentIsland\bin\Release\net8.0-windows\AgentIsland.exe
+          $snapshotProcess = Start-Process `
+            -FilePath .\src\AgentIsland\bin\Release\net8.0-windows\AgentIsland.exe `
+            -Wait -PassThru
+          if ($snapshotProcess.ExitCode -ne 0) {
+            throw "UI snapshot sweep exited with code $($snapshotProcess.ExitCode)."
+          }
           $required = @(
             "approval-permission.png", "approval-question.png", "approval-plan.png",
             "transcripts.png", "dialog-deepseek.png", "settings-7-about.png"
