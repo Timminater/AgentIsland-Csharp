@@ -37,7 +37,7 @@ AgentIsland werkt lokaal. Broncode, prompts en gespreksinhoud worden niet door A
 ## Installeren
 
 1. Open [Releases](https://github.com/Timminater/AgentIsland-Csharp/releases).
-2. Download `AgentIsland-2.6.1-win-x64.zip`.
+2. Download `AgentIsland-2.7.0-win-x64.zip`.
 3. Pak het bestand uit.
 4. Start `AgentIsland.exe`.
 
@@ -53,10 +53,10 @@ Vereisten:
 ```powershell
 dotnet build AgentIsland.sln
 dotnet test AgentIsland.sln
-.\build.ps1 -Runtime win-x64 -Version 2.6.1
+.\build.ps1 -Runtime win-x64 -Version 2.7.0
 ```
 
-De pakketbuild verschijnt als `dist/AgentIsland-2.6.1-win-x64.zip`.
+De pakketbuild verschijnt als `dist/AgentIsland-2.7.0-win-x64.zip`.
 
 ## Projectstructuur
 

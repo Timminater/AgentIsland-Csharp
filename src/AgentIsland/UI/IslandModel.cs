@@ -31,6 +31,7 @@ public sealed class IslandModel : IIslandModel
     /// Mac, 24pt compact): one value tuned for taskbar-less screen tops.
     public const double SilhouetteHeight = 36;
     public const double UsageContentHeight = 188;
+    public const double CostContentHeight = 220;
     public const double OverviewContentHeight = 244;
     public const double OverviewDetailHeight = 52;
     /// Corner radius on the side away from the screen edge. macOS uses a

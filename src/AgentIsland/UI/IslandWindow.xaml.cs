@@ -871,9 +871,12 @@ public partial class IslandWindow : Window
     }
 
     private void ApplyPanelHeightForScreen() =>
-        _model.ExpandedContentHeight = _screenPref.Screen == IslandScreen.Overview
-            ? IslandModel.OverviewContentHeight
-            : IslandModel.UsageContentHeight;
+        _model.ExpandedContentHeight = _screenPref.Screen switch
+        {
+            IslandScreen.Cost => IslandModel.CostContentHeight,
+            IslandScreen.Overview => IslandModel.OverviewContentHeight,
+            _ => IslandModel.UsageContentHeight,
+        };
 
     private static (System.Windows.Controls.StackPanel Panel, System.Windows.Controls.TextBlock Chip) MakeProviderTitle(string name)
     {
@@ -1131,9 +1134,11 @@ public partial class IslandWindow : Window
     // MARK: - State transitions
 
     private DispatcherTimer? _hoverIntent;
+    private bool _verificationStateForced;
 
     private void OnSilhouetteMouseEnter(object sender, MouseEventArgs e)
     {
+        if (_verificationStateForced) return;
         _hovering = true;
         UpdateHalo();
         ResetIdleTimer();
@@ -1154,6 +1159,7 @@ public partial class IslandWindow : Window
 
     private void OnSilhouetteMouseLeave(object sender, MouseEventArgs e)
     {
+        if (_verificationStateForced) return;
         _hovering = false;
         _hoverIntent?.Stop();
         UpdateHalo();
@@ -2164,6 +2170,16 @@ public partial class IslandWindow : Window
             store.Loading,
             unavailable: snapshot is { IsAvailable: false } || store.ErrorCaption is not null,
             forecast: forecast);
+    }
+
+    internal void ForceStateForVerification(IslandState state)
+    {
+        _verificationStateForced = true;
+        _hoverIntent?.Stop();
+        _hovering = false;
+        SetState(state);
+        ApplySizeInstant();
+        RootHost.UpdateLayout();
     }
 
     private void UpdatePills()

@@ -11,8 +11,8 @@ public sealed record ModelShare(
     string Name, long Tokens, double Dollars, double Percent, Color Color,
     AgentIsland.UI.Providers.DisplayProvider Provider, bool IsOthers = false);
 
-/// One provider's token roll-up for a report period — the atom the top-2
-/// duel and the cross-provider totals are built from. Replaces the hardcoded
+/// One provider's token roll-up for a report period — the atom the provider
+/// share breakdown and cross-provider totals are built from. Replaces the hardcoded
 /// Claude/Codex share so a Grok-only, Cursor+Antigravity, or DeepSeek-only period still renders a
 /// meaningful card.
 public sealed record ProviderPeriodSlice(AgentIsland.UI.Providers.DisplayProvider Provider, long Tokens);
@@ -166,7 +166,7 @@ public sealed record WeeklyReportData(
 }
 
 /// The monthly share card — v3 drops the heatmap; the month's model mix
-/// (TOP 5 pie) is the centerpiece under the faceoff bar.
+/// (TOP 5 pie) is the centerpiece under the provider share bar.
 public sealed record MonthlyReportData(
     string MonthText,
     long TotalTokens,

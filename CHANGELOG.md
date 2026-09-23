@@ -2,6 +2,12 @@
 
 Belangrijke wijzigingen aan AgentIsland voor Windows worden hier in het Nederlands bijgehouden. Uitgebreide toelichting staat in [docs/releases](docs/releases/README.md).
 
+## 2.7.0 - 23 september 2026
+
+- De providerduels en speelse duelafbeeldingen zijn uit de rapporten verwijderd; de verdeling blijft neutraal zichtbaar.
+- De Cost-pagina van het eiland krijgt genoeg hoogte om de kostenregels boven de vaste footer te tonen.
+- De compacte en mouseover-weergave van het eiland worden afzonderlijk gecontroleerd.
+
 ## 2.6.1 - 23 september 2026
 
 - GitHub-documentatie en releasebeschrijvingen zijn volledig in het Nederlands gezet.

@@ -10,14 +10,11 @@ using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI.Report;
 
-/// The two share cards, v3 layout (locked 2026-07-16; character art lands
-/// later in the reserved slot above the faceoff bar):
+/// The two share cards, v3 layout (locked 2026-07-16):
 ///   header  — app logo top-left on the wordmark line, date right
 ///   hero    — big number with the "≈ $X API value" line sharing its
 ///             baseline
-///   faceoff — official provider logos at both ends, a two-color beam split
-///             by share, a white spark at the meeting point, 144px of
-///             head-room reserved for the character art
+///   providers — one neutral usage-share bar with a compact provider legend
 ///   middle  — weekly: 7-day bars (peak in brand teal + its value) then a
 ///             TOP-3 model pie; monthly: a TOP-5 model pie (heatmap gone)
 ///   footer  — rank block, no plate, no divider: lifetime line + the
@@ -46,7 +43,7 @@ public static partial class ReportCards
         var body = BuildWeeklyLayout(
             Header("WEEKLY", data.RangeText),
             Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, dutch),
-            FaceoffStage(data.Providers, dutch),
+            ProviderShareStage(data.Providers),
             WeekBars(data, dutch),
             ModelTable(data.TopModels, dutch, data.OmittedModelsCount, data.OmittedPercent));
         return Card(body, rounded);
@@ -62,13 +59,13 @@ public static partial class ReportCards
         var body = BuildMonthlyLayout(
             Header("MONTHLY", data.MonthText),
             Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, dutch),
-            FaceoffStage(data.Providers, dutch),
+            ProviderShareStage(data.Providers),
             ModelTable(data.TopModels, dutch, data.OmittedModelsCount, data.OmittedPercent));
         return Card(body, rounded);
     }
 
     private static Grid BuildWeeklyLayout(
-        UIElement header, UIElement hero, UIElement faceoff, UIElement weekBars, UIElement modelTable)
+        UIElement header, UIElement hero, UIElement providerShares, UIElement weekBars, UIElement modelTable)
     {
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -86,8 +83,8 @@ public static partial class ReportCards
         grid.Children.Add(header);
         Grid.SetRow((FrameworkElement)hero, 2);
         grid.Children.Add(hero);
-        Grid.SetRow((FrameworkElement)faceoff, 4);
-        grid.Children.Add(faceoff);
+        Grid.SetRow((FrameworkElement)providerShares, 4);
+        grid.Children.Add(providerShares);
         Grid.SetRow((FrameworkElement)weekBars, 6);
         grid.Children.Add(weekBars);
         Grid.SetRow((FrameworkElement)modelTable, 8);
@@ -97,7 +94,7 @@ public static partial class ReportCards
     }
 
     private static Grid BuildMonthlyLayout(
-        UIElement header, UIElement hero, UIElement faceoff, UIElement modelTable)
+        UIElement header, UIElement hero, UIElement providerShares, UIElement modelTable)
     {
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -113,8 +110,8 @@ public static partial class ReportCards
         grid.Children.Add(header);
         Grid.SetRow((FrameworkElement)hero, 2);
         grid.Children.Add(hero);
-        Grid.SetRow((FrameworkElement)faceoff, 4);
-        grid.Children.Add(faceoff);
+        Grid.SetRow((FrameworkElement)providerShares, 4);
+        grid.Children.Add(providerShares);
         Grid.SetRow((FrameworkElement)modelTable, 6);
         grid.Children.Add(modelTable);
         grid.RowDefinitions[^1].Height = new GridLength(0.5, GridUnitType.Star);
@@ -307,92 +304,55 @@ public static partial class ReportCards
         return stack;
     }
 
-    // MARK: - Top-2 duel (macOS ReportDuel, generalized 2026-08-08)
+    // MARK: - Provider usage distribution
 
-    private const double DuelArtHeight = 78;
-    private const double DuelMarkSide = 18;
-    private const double DuelSoloMarkSide = 28;
-    private const double DuelMarkGap = 10;
-    private const double DuelBeamHeight = 6;
+    private const double ShareBarHeight = 6;
 
-    private static UIElement FaceoffStage(IReadOnlyList<ProviderPeriodSlice> providers, bool dutch)
+    private static UIElement ProviderShareStage(IReadOnlyList<ProviderPeriodSlice> providers)
     {
         var contentWidth = CardWidth - 56; // 28pt card padding each side
-        var beamX0 = DuelMarkSide + DuelMarkGap;
-        var beamWidth = contentWidth - 2 * beamX0;
-        var beamY = 88.0;
-
         var stack = new StackPanel();
         var active = providers.Where(p => p.Tokens > 0).ToList();
 
-        if (active.Count > 2)
+        if (active.Count > 0)
         {
-            RenderProviderShares(stack, active, contentWidth, beamX0, beamWidth);
+            RenderProviderShares(stack, active, contentWidth);
             return stack;
         }
-        if (active.Count == 2)
-        {
-            RenderDuel(stack, active[0], active[1], contentWidth, beamX0, beamWidth, beamY);
-            return stack;
-        }
-        else if (active.Count == 1)
-        {
-            var canvas = new Canvas { Width = contentWidth, Height = 98 };
-            stack.Children.Add(canvas);
-            SoloStage(stack, canvas, active[0], contentWidth, beamX0, beamWidth, beamY);
-            return stack;
-        }
-        else
-        {
-            RenderEmptyStage(stack, contentWidth, beamX0, beamWidth, dutch);
-            return stack;
-        }
+
+        RenderEmptyStage(stack, contentWidth);
+        return stack;
     }
 
     private static void RenderProviderShares(
         StackPanel stack,
         IReadOnlyList<ProviderPeriodSlice> providers,
-        double contentWidth,
-        double beamX0,
-        double beamWidth)
+        double contentWidth)
     {
         var total = (double)providers.Sum(provider => provider.Tokens);
-        var canvas = new Canvas { Width = contentWidth, Height = 38 };
-        stack.Children.Add(canvas);
-
-        var track = new Border
+        var bar = new Grid { Width = contentWidth, Height = ShareBarHeight, HorizontalAlignment = HorizontalAlignment.Left };
+        bar.Children.Add(new Border
         {
-            Width = beamWidth,
-            Height = DuelBeamHeight,
             CornerRadius = new CornerRadius(3),
             Background = IslandColors.Brush(IslandColors.White(0.08)),
-        };
-        Canvas.SetLeft(track, beamX0);
-        Canvas.SetTop(track, 15);
-        canvas.Children.Add(track);
+        });
 
-        var x = beamX0;
+        var segments = new Grid { ClipToBounds = true };
         foreach (var provider in providers)
         {
             var share = total > 0 ? provider.Tokens / total : 0;
-            var width = beamWidth * share;
-            if (width <= 0) continue;
-            var segment = new Border
-            {
-                Width = width,
-                Height = DuelBeamHeight,
-                Background = IslandColors.Brush(ProviderIdentity.Accent(provider.Provider)),
-            };
-            Canvas.SetLeft(segment, x);
-            Canvas.SetTop(segment, 15);
-            canvas.Children.Add(segment);
-            x += width;
+            segments.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(share, GridUnitType.Star) });
+            var segment = new Border { Background = IslandColors.Brush(ProviderIdentity.Accent(provider.Provider)) };
+            Grid.SetColumn(segment, segments.ColumnDefinitions.Count - 1);
+            segments.Children.Add(segment);
         }
+        bar.Children.Add(segments);
+        stack.Children.Add(bar);
 
         var legend = new WrapPanel
         {
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 2, 0, 0),
+            Margin = new Thickness(0, 8, 0, 0),
         };
         foreach (var provider in providers)
         {
@@ -423,81 +383,9 @@ public static partial class ReportCards
         stack.Children.Add(legend);
     }
 
-    private static void RenderDuel(
-        StackPanel stack, ProviderPeriodSlice p0, ProviderPeriodSlice p1,
-        double contentWidth, double beamX0, double beamWidth, double beamY)
+    private static void RenderEmptyStage(StackPanel stack, double contentWidth)
     {
-        var canvas = new Canvas { Width = contentWidth, Height = 98 };
-        stack.Children.Add(canvas);
-
-        var (left, right) = ResolveDuelSides(p0, p1);
-        var pairTotal = (double)(left.Tokens + right.Tokens);
-        var leftShare = pairTotal > 0 ? left.Tokens / pairTotal : 0.5;
-
-        // The spark rides the TRUE split; only the artwork clamps inward
-        var sparkX = beamX0 + beamWidth * Math.Min(0.97, Math.Max(0.03, leftShare));
-        var artX = beamX0 + beamWidth * Math.Min(0.74, Math.Max(0.26, leftShare));
-
-        // Load duel chibi artwork between the two providers
-        TryAddDuelArt(canvas, left.Provider, right.Provider, leftShare, artX);
-
-        var leftAccent = ProviderIdentity.Accent(left.Provider);
-        var rightAccent = ProviderIdentity.Accent(right.Provider);
-
-        var leftMark = ProviderMark(left.Provider);
-        Canvas.SetLeft(leftMark, 0);
-        Canvas.SetTop(leftMark, beamY - DuelMarkSide / 2);
-        canvas.Children.Add(leftMark);
-
-        var rightMark = ProviderMark(right.Provider);
-        Canvas.SetLeft(rightMark, contentWidth - DuelMarkSide);
-        Canvas.SetTop(rightMark, beamY - DuelMarkSide / 2);
-        canvas.Children.Add(rightMark);
-
-        // Two capsule beams meeting at the split
-        var leftBeamWidth = Math.Max(3, beamWidth * leftShare - 0.75);
-        var leftBeam = new Border
-        {
-            Width = leftBeamWidth,
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = new LinearGradientBrush(BeamShoulder(left.Provider), leftAccent, 0),
-        };
-        Canvas.SetLeft(leftBeam, beamX0);
-        Canvas.SetTop(leftBeam, beamY - DuelBeamHeight / 2);
-        canvas.Children.Add(leftBeam);
-
-        var rightBeam = new Border
-        {
-            Width = Math.Max(3, beamWidth - leftBeamWidth - 1.5),
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = new LinearGradientBrush(rightAccent, BeamShoulder(right.Provider), 0),
-        };
-        Canvas.SetLeft(rightBeam, beamX0 + leftBeamWidth + 1.5);
-        Canvas.SetTop(rightBeam, beamY - DuelBeamHeight / 2);
-        canvas.Children.Add(rightBeam);
-
-        canvas.Children.Add(ClashSpark(sparkX, beamY, leftAccent, rightAccent));
-
-        // Share legend under the bar's ends
-        var legend = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 8, 0, 0) };
-        var leftSide = ShareTag(ProviderIdentity.DisplayName(left.Provider), leftShare, leftAccent);
-        DockPanel.SetDock(leftSide, Dock.Left);
-        legend.Children.Add(leftSide);
-        var rightSide = ShareTag(ProviderIdentity.DisplayName(right.Provider), 1 - leftShare, rightAccent);
-        DockPanel.SetDock(rightSide, Dock.Right);
-        legend.Children.Add(rightSide);
-        stack.Children.Add(legend);
-    }
-
-    private static void RenderEmptyStage(
-        StackPanel stack, double contentWidth, double beamX0, double beamWidth, bool dutch)
-    {
-        var canvas = new Canvas { Width = contentWidth, Height = 64 };
-        stack.Children.Add(canvas);
-
-        var emptyText = new TextBlock
+        stack.Children.Add(new TextBlock
         {
             Text = AgentIsland.UI.Localization.L10n.Tr("No activity recorded"),
             FontFamily = IslandFonts.Ui,
@@ -506,344 +394,10 @@ public static partial class ReportCards
             Foreground = IslandColors.Brush(IslandColors.White(0.35)),
             Width = contentWidth,
             TextAlignment = TextAlignment.Center,
-        };
-        Canvas.SetLeft(emptyText, 0);
-        Canvas.SetTop(emptyText, 10);
-        canvas.Children.Add(emptyText);
-
-        var beam = new Border
-        {
-            Width = beamWidth,
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = IslandColors.Brush(IslandColors.White(0.08)),
-        };
-        Canvas.SetLeft(beam, beamX0);
-        Canvas.SetTop(beam, 38);
-        canvas.Children.Add(beam);
-    }
-
-    /// Single provider solo stage: renders the agent's character standing portrait
-    /// over a full beam with 100% share label. Falls back to mark if portrait is absent.
-    private static void SoloStage(
-        StackPanel stack, Canvas canvas, ProviderPeriodSlice solo,
-        double contentWidth, double beamX0, double beamWidth, double beamY)
-    {
-        var accent = ProviderIdentity.Accent(solo.Provider);
-
-        // Try load single agent character standing portrait!
-        bool characterLoaded = TryAddSoloCharacterArt(canvas, solo.Provider, contentWidth / 2);
-
-        if (!characterLoaded)
-        {
-            var mark = ProviderMark(solo.Provider, DuelSoloMarkSide);
-            Canvas.SetLeft(mark, contentWidth / 2 - DuelSoloMarkSide / 2);
-            Canvas.SetTop(mark, 40 - DuelSoloMarkSide / 2);
-            canvas.Children.Add(mark);
-        }
-
-        var beam = new Border
-        {
-            Width = beamWidth,
-            Height = DuelBeamHeight,
-            CornerRadius = new CornerRadius(3),
-            Background = new LinearGradientBrush(BeamShoulder(solo.Provider), accent, 0),
-        };
-        Canvas.SetLeft(beam, beamX0);
-        Canvas.SetTop(beam, beamY - DuelBeamHeight / 2);
-        canvas.Children.Add(beam);
-
-        var legend = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 8, 0, 0),
-        };
-        legend.Children.Add(ShareTag(ProviderIdentity.DisplayName(solo.Provider), 1, accent));
-        stack.Children.Add(legend);
-    }
-
-    private static bool TryAddSoloCharacterArt(Canvas canvas, DisplayProvider provider, double centerX)
-    {
-        var filename = CharacterFileName(provider);
-        if (filename is null) return false;
-
-        var candidates = new[]
-        {
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/portretten/{filename}",
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/{filename}",
-        };
-
-        foreach (var uriString in candidates)
-        {
-            try
-            {
-                var uri = new Uri(uriString);
-                var streamResource = Application.GetResourceStream(uri);
-                if (streamResource is not null)
-                {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = streamResource.Stream;
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-
-                    var artHeight = DuelArtHeight;
-                    var artWidth = artHeight * bitmap.PixelWidth / Math.Max(1, bitmap.PixelHeight);
-                    var art = new Image
-                    {
-                        Source = bitmap,
-                        Height = artHeight,
-                        Width = artWidth,
-                        Stretch = Stretch.Uniform,
-                    };
-                    RenderOptions.SetBitmapScalingMode(art, BitmapScalingMode.HighQuality);
-                    Canvas.SetLeft(art, centerX - artWidth / 2);
-                    Canvas.SetTop(art, 0);
-                    System.Windows.Controls.Panel.SetZIndex(art, 2);
-                    canvas.Children.Add(art);
-                    return true;
-                }
-            }
-            catch
-            {
-                // Try next
-            }
-        }
-        return false;
-    }
-
-    private static string? CharacterFileName(DisplayProvider provider) => provider switch
-    {
-        DisplayProvider.Claude => "claude-amodei.png",
-        DisplayProvider.Codex => "codex-altman.png",
-        DisplayProvider.Antigravity => "antigravity-demis.png",
-        DisplayProvider.Grok => "grok-musk.png",
-        DisplayProvider.Cursor => "cursor-robot.png",
-        DisplayProvider.DeepSeek => "deepseek-liang.png",
-        _ => null,
-    };
-
-    private static string Slug(DisplayProvider provider) => provider switch
-    {
-        DisplayProvider.Claude => "claude",
-        DisplayProvider.Codex => "codex",
-        DisplayProvider.Antigravity => "antigravity",
-        DisplayProvider.Grok => "grok",
-        DisplayProvider.Cursor => "cursor",
-        DisplayProvider.DeepSeek => "deepseek",
-        _ => provider.ToString().ToLowerInvariant(),
-    };
-
-    internal static (ProviderPeriodSlice Left, ProviderPeriodSlice Right) ResolveDuelSides(
-        ProviderPeriodSlice left, ProviderPeriodSlice right)
-    {
-        var total = (double)left.Tokens + right.Tokens;
-        var share = total > 0 ? left.Tokens / total : 0.5;
-        var result = DuelResult(share);
-        if (HasDuelArt(left.Provider, right.Provider, result)) return (left, right);
-
-        var reverseResult = result == "win" ? "lose" : result == "lose" ? "win" : "draw";
-        // Swap the entire stage, including names and beam shares, to match
-        // the existing artwork. Mirroring would reverse the characters' logos.
-        return HasDuelArt(right.Provider, left.Provider, reverseResult)
-            ? (right, left)
-            : (left, right);
-    }
-
-    private static string DuelResult(double leftShare) =>
-        leftShare >= 0.52 ? "win" : leftShare <= 0.48 ? "lose" : "draw";
-
-    private static bool HasDuelArt(DisplayProvider left, DisplayProvider right, string result)
-    {
-        foreach (var folder in new[] { "Assets/Report/duels", "Assets/Report" })
-        {
-            try
-            {
-                var resource = Application.GetResourceStream(new Uri(
-                    $"pack://application:,,,/AgentIsland;component/{folder}/duel-{Slug(left)}-{result}-{Slug(right)}.png"));
-                if (resource is null) continue;
-                resource.Stream.Dispose();
-                return true;
-            }
-            catch (System.IO.IOException) { }
-            catch (UriFormatException) { }
-            catch (InvalidOperationException) { }
-        }
-        return false;
-    }
-
-    private static void TryAddDuelArt(Canvas canvas, DisplayProvider left, DisplayProvider right, double leftShare, double artX)
-    {
-        var result = DuelResult(leftShare);
-        var leftSlug = Slug(left);
-        var rightSlug = Slug(right);
-
-        var candidates = new List<string>
-        {
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/duels/duel-{leftSlug}-{result}-{rightSlug}.png",
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/duel-{leftSlug}-{result}-{rightSlug}.png",
-        };
-
-        if (left == DisplayProvider.Claude && right == DisplayProvider.Codex)
-        {
-            var legacyPose = result == "win" ? "duel-claude-wins" : (result == "lose" ? "duel-codex-wins" : "duel-draw");
-            candidates.Add($"pack://application:,,,/AgentIsland;component/Assets/Report/{legacyPose}.png");
-        }
-        else if (left == DisplayProvider.Codex && right == DisplayProvider.Claude)
-        {
-            var legacyPose = result == "win" ? "duel-codex-wins" : (result == "lose" ? "duel-claude-wins" : "duel-draw");
-            candidates.Add($"pack://application:,,,/AgentIsland;component/Assets/Report/{legacyPose}.png");
-        }
-
-        foreach (var uriString in candidates)
-        {
-            try
-            {
-                var uri = new Uri(uriString);
-                var streamResource = Application.GetResourceStream(uri);
-                if (streamResource is not null)
-                {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.StreamSource = streamResource.Stream;
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-                    bitmap.Freeze();
-
-                    var artWidth = DuelArtHeight * bitmap.PixelWidth / Math.Max(1, bitmap.PixelHeight);
-                    var art = new Image
-                    {
-                        Source = bitmap,
-                        Height = DuelArtHeight,
-                        Width = artWidth,
-                        Stretch = Stretch.Uniform,
-                    };
-                    RenderOptions.SetBitmapScalingMode(art, BitmapScalingMode.HighQuality);
-                    Canvas.SetLeft(art, artX - artWidth / 2);
-                    Canvas.SetTop(art, 0);
-                    System.Windows.Controls.Panel.SetZIndex(art, 2);
-                    canvas.Children.Add(art);
-                    return;
-                }
-            }
-            catch
-            {
-                // Try next
-            }
-        }
-    }
-
-    /// A brighter shoulder for a beam's outer end. Claude and Codex keep the
-    /// hand-picked warm/cool shoulders of the original two-way card; other
-    /// providers get a generic lift toward white off their accent.
-    private static Color BeamShoulder(DisplayProvider provider) => provider switch
-    {
-        DisplayProvider.Claude => Color.FromRgb(0xE0, 0x8A, 0x63),
-        DisplayProvider.Codex => Color.FromRgb(0xC4, 0xB5, 0xFD),
-        _ => Lighten(ProviderIdentity.Accent(provider), 0.28),
-    };
-
-    private static Color Lighten(Color c, double t) => Color.FromRgb(
-        (byte)(c.R + (255 - c.R) * t),
-        (byte)(c.G + (255 - c.G) * t),
-        (byte)(c.B + (255 - c.B) * t));
-
-    /// White core + four-point star, warm shoulder to the left provider's
-    /// side and cool to the right — the "swords meet here" moment.
-    private static UIElement ClashSpark(double x, double y, Color leftColor, Color rightColor)
-    {
-        var spark = new Grid { Width = 20, Height = 20 };
-        // Side lights first, under the star.
-        var warm = new Ellipse
-        {
-            Width = 9,
-            Height = 9,
-            Fill = IslandColors.Brush(IslandColors.Alpha(leftColor, 0.55)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(-10, 0, 0, 0),
-        };
-        var cool = new Ellipse
-        {
-            Width = 9,
-            Height = 9,
-            Fill = IslandColors.Brush(IslandColors.Alpha(rightColor, 0.55)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 0, 0),
-        };
-        spark.Children.Add(warm);
-        spark.Children.Add(cool);
-        foreach (var angle in new[] { 14.0, 104.0 })
-        {
-            spark.Children.Add(new Border
-            {
-                Width = 1.6,
-                Height = 17,
-                CornerRadius = new CornerRadius(0.8),
-                Background = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                RenderTransformOrigin = new Point(0.5, 0.5),
-                RenderTransform = new RotateTransform(angle),
-            });
-        }
-        spark.Children.Add(new Ellipse
-        {
-            Width = 7,
-            Height = 7,
-            Fill = Brushes.White,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect
-            {
-                ShadowDepth = 0,
-                BlurRadius = 12,
-                Color = Colors.White,
-                Opacity = 0.95,
-            },
         });
-        Canvas.SetLeft(spark, x - 10);
-        Canvas.SetTop(spark, y - 10);
-        System.Windows.Controls.Panel.SetZIndex(spark, 1);
-        return spark;
     }
 
-    private static UIElement ShareTag(string name, double share, Color color)
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(new Ellipse
-        {
-            Width = 7,
-            Height = 7,
-            Fill = IslandColors.Brush(color),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 6, 0),
-        });
-        row.Children.Add(new TextBlock
-        {
-            Text = name + " ",
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11.5,
-            FontWeight = FontWeights.Bold,
-            Foreground = IslandColors.Brush(IslandColors.White(0.8)),
-            VerticalAlignment = VerticalAlignment.Center,
-        });
-        row.Children.Add(Numeric(new TextBlock
-        {
-            Text = $"{Core.Formatting.PercentInt(share)}%",
-            FontFamily = IslandFonts.Ui,
-            FontSize = 11.5,
-            FontWeight = FontWeights.ExtraBold,
-            Foreground = IslandColors.Brush(color),
-            VerticalAlignment = VerticalAlignment.Center,
-        }));
-        return row;
-    }
-
-    private static UIElement ProviderMark(DisplayProvider provider, double side = DuelMarkSide) =>
+    private static UIElement ProviderMark(DisplayProvider provider, double side = 18) =>
         ProviderMarks.Mark(provider, side, tintOpacity: 1);
 
     // MARK: - Weekly bars

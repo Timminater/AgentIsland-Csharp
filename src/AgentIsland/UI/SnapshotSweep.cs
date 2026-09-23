@@ -9,7 +9,7 @@ namespace AgentIsland.UI;
 
 /// CI verification rig: AGENTISLAND_SNAPSHOT_DIR renders every major
 /// surface — report cards AND the report window chrome (pager + calendar),
-/// the island in compact/expanded and on every carousel page, the release
+/// the island in compact, mouseover, expanded and on every carousel page, the release
 /// and guide cards, approval/transcript surfaces, every provider alarm dialog,
 /// and all seven settings tabs — into the
 /// directory and exits. Run under AGENTISLAND_DEMO=1 on a Windows runner,
@@ -80,95 +80,105 @@ public static class SnapshotSweep
                 Report.ReportWindow.WritePng(Report.ReportWindow.Kind.Weekly, At("report-weekly.png"));
                 Report.ReportWindow.WritePng(Report.ReportWindow.Kind.Monthly, At("report-monthly.png"));
             });
+            island.ForceStateForVerification(IslandState.Compact);
             island.SaveVisualSnapshot(At("island-compact.png"));
             After(1.0, () =>
             {
-            island.PopUp();
-            After(1.6, () =>
-            {
-                island.SaveVisualSnapshot(At("island-expanded.png"));
+                island.ForceStateForVerification(IslandState.Peek);
+                island.SaveVisualSnapshot(At("island-mouseover.png"));
                 After(1.0, () =>
                 {
-                screenPref.ForceForVerification(IslandScreen.Cost);
-                After(0.9, () =>
-                {
-                    island.SaveVisualSnapshot(At("island-Cost.png"));
-                    After(1.0, () =>
+                    island.PopUp();
+                    After(1.6, () =>
                     {
-                    screenPref.ForceForVerification(IslandScreen.Overview);
-                    After(1.0, () =>
-                    {
-                        island.SaveVisualSnapshot(At("island-overview.png"));
+                        screenPref.ForceForVerification(IslandScreen.Usage);
                         After(1.0, () =>
                         {
-                        screenPref.ForceForVerification(IslandScreen.Usage);
-                        Try(() => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly));
-                        After(1.5, () =>
-                        {
-                            RenderOpenWindow<Report.ReportWindow>(At("report-window-weekly.png"));
-                            CloseOpenWindows<Report.ReportWindow>();
-                            Try(() => RenderCalendarPopup(At("report-calendar.png")));
-                            Try(WhatsNewWindow.Open);
-                            After(1.3, () =>
+                            island.SaveVisualSnapshot(At("island-usage.png"));
+                            After(1.0, () =>
                             {
-                                RenderOpenWindow<WhatsNewWindow>(At("whatsnew.png"));
-                                CloseOpenWindows<WhatsNewWindow>();
-                                Try(WhatsNewWindow.OpenGuide);
-                                After(1.3, () =>
+                                screenPref.ForceForVerification(IslandScreen.Cost);
+                                After(1.0, () =>
                                 {
-                                    RenderOpenWindow<WhatsNewWindow>(At("guide.png"));
-                                    CloseOpenWindows<WhatsNewWindow>();
-                                    // Every provider's alarm dialog — each
-                                    // must wear its OWN mark and accent.
-                                    var tools = new[]
+                                    island.SaveVisualSnapshot(At("island-cost.png"));
+                                    After(1.0, () =>
                                     {
-                                        TriggerTool.Claude, TriggerTool.Codex, TriggerTool.Antigravity,
-                                        TriggerTool.Grok, TriggerTool.Cursor, TriggerTool.DeepSeek,
-                                    };
-                                    var toolIndex = 0;
-                                    void NextDialog()
-                                    {
-                                        if (toolIndex >= tools.Length)
+                                        screenPref.ForceForVerification(IslandScreen.Overview);
+                                        After(1.0, () =>
                                         {
-                                            Try(TranscriptWindow.ShowWindow);
+                                            island.SaveVisualSnapshot(At("island-overview.png"));
                                             After(1.0, () =>
                                             {
-                                                RenderOpenWindow<TranscriptWindow>(At("transcripts.png"));
-                                                CloseOpenWindows<TranscriptWindow>();
-                                                SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
+                                                screenPref.ForceForVerification(IslandScreen.Usage);
+                                                Try(() => Report.ReportWindow.Show(Report.ReportWindow.Kind.Weekly));
+                                                After(1.5, () =>
+                                                {
+                                                    RenderOpenWindow<Report.ReportWindow>(At("report-window-weekly.png"));
+                                                    CloseOpenWindows<Report.ReportWindow>();
+                                                    Try(() => RenderCalendarPopup(At("report-calendar.png")));
+                                                    Try(WhatsNewWindow.Open);
+                                                    After(1.3, () =>
+                                                    {
+                                                        RenderOpenWindow<WhatsNewWindow>(At("whatsnew.png"));
+                                                        CloseOpenWindows<WhatsNewWindow>();
+                                                        Try(WhatsNewWindow.OpenGuide);
+                                                        After(1.3, () =>
+                                                        {
+                                                            RenderOpenWindow<WhatsNewWindow>(At("guide.png"));
+                                                            CloseOpenWindows<WhatsNewWindow>();
+                                                            // Every provider's alarm dialog — each
+                                                            // must wear its OWN mark and accent.
+                                                            var tools = new[]
+                                                            {
+                                                                TriggerTool.Claude, TriggerTool.Codex, TriggerTool.Antigravity,
+                                                                TriggerTool.Grok, TriggerTool.Cursor, TriggerTool.DeepSeek,
+                                                            };
+                                                            var toolIndex = 0;
+                                                            void NextDialog()
+                                                            {
+                                                                if (toolIndex >= tools.Length)
+                                                                {
+                                                                    Try(TranscriptWindow.ShowWindow);
+                                                                    After(1.0, () =>
+                                                                    {
+                                                                        RenderOpenWindow<TranscriptWindow>(At("transcripts.png"));
+                                                                        CloseOpenWindows<TranscriptWindow>();
+                                                                        SettingsWindow.SnapshotAllTabs(dir, app.Shutdown);
+                                                                    });
+                                                                    return;
+                                                                }
+                                                                var tool = tools[toolIndex];
+                                                                toolIndex++;
+                                                                Try(() => IslandDialog.Show(
+                                                                    tool,
+                                                                    AgentIsland.UI.Localization.L10n.Tr("Your turn"),
+                                                                    AgentIsland.UI.Localization.L10n.Tr("A thread finished — Agent Island opens an alarm window so you can reply."),
+                                                                    meta: new[]
+                                                                    {
+                                                                        (AgentIsland.UI.Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
+                                                                        (AgentIsland.UI.Localization.L10n.Tr("Alarm project"), "Agent Island"),
+                                                                    },
+                                                                    primaryLabel: AgentIsland.UI.Localization.L10n.Tr("Open"),
+                                                                    secondaryLabel: AgentIsland.UI.Localization.L10n.Tr("I know")));
+                                                                After(1.1, () =>
+                                                                {
+                                                                    RenderOpenWindow<IslandDialog>(At($"dialog-{tool}".ToLowerInvariant() + ".png"));
+                                                                    CloseOpenWindows<IslandDialog>();
+                                                                    NextDialog();
+                                                                });
+                                                            }
+                                                            NextDialog();
+                                                        });
+                                                    });
+                                                });
                                             });
-                                            return;
-                                        }
-                                        var tool = tools[toolIndex];
-                                        toolIndex++;
-                                        Try(() => IslandDialog.Show(
-                                            tool,
-                                            AgentIsland.UI.Localization.L10n.Tr("Your turn"),
-                                            AgentIsland.UI.Localization.L10n.Tr("A thread finished — Agent Island opens an alarm window so you can reply."),
-                                            meta: new[]
-                                            {
-                                                (AgentIsland.UI.Localization.L10n.Tr("Alarm thread"), "Agent Island Windows"),
-                                                (AgentIsland.UI.Localization.L10n.Tr("Alarm project"), "Agent Island"),
-                                            },
-                                            primaryLabel: AgentIsland.UI.Localization.L10n.Tr("Open"),
-                                            secondaryLabel: AgentIsland.UI.Localization.L10n.Tr("I know")));
-                                        After(1.1, () =>
-                                        {
-                                            RenderOpenWindow<IslandDialog>(At($"dialog-{tool}".ToLowerInvariant() + ".png"));
-                                            CloseOpenWindows<IslandDialog>();
-                                            NextDialog();
                                         });
-                                    }
-                                    NextDialog();
+                                    });
                                 });
                             });
                         });
-                        });
-                    });
                     });
                 });
-                });
-            });
             });
         });
     }

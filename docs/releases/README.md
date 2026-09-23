@@ -4,6 +4,7 @@ Deze map bevat de Nederlandstalige release-informatie van AgentIsland voor Windo
 
 | Versie | Datum | Hoofdonderwerp |
 | --- | --- | --- |
+| [2.7.0](v2.7.0.md) | 23 september 2026 | Neutrale rapporten en passende eilandweergaven |
 | [2.6.1](v2.6.1.md) | 23 september 2026 | Nederlandstalige documentatie en taalcorrecties |
 | [2.6.0](v2.6.0.md) | 22 september 2026 | Voorspelling wanneer quota of saldo opraakt |
 | [2.5.0](v2.5.0.md) | 13 september 2026 | Betrouwbaarheid, toegankelijkheid en veilige updates |
