@@ -88,6 +88,13 @@ public sealed class ApprovalCoordinator : IApprovalCoordinator, IDisposable
         string? feedback = null,
         IReadOnlyDictionary<string, string>? answers = null)
     {
+        // Codex's PermissionRequest hook can decide this request, but it has
+        // no persistent permission-rule output. Never imply "Always" there.
+        if (request.Provider == AgentIsland.Core.TriggerTool.Codex && scope == ApprovalScope.Always)
+        {
+            scope = ApprovalScope.Once;
+        }
+
         if (kind == ApprovalDecisionKind.Allow)
         {
             if (scope == ApprovalScope.Session)

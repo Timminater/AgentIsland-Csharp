@@ -47,6 +47,9 @@ public sealed partial class PanelFooter : Grid
         WeeklyPill.ToolTip = L10n.Tr("Share weekly report");
         MonthlyLabel.Text = L10n.Tr("Monthly");
         MonthlyPill.ToolTip = L10n.Tr("Share monthly report");
+        ExitButton.ToolTip = L10n.Tr("Quit Agent Island");
+        System.Windows.Automation.AutomationProperties.SetName(
+            ExitButton, L10n.Tr("Quit Agent Island"));
 
         // A single named handler so every subscription and the timer tear
         // down on Unloaded — a rebuilt island (e.g. language switch) would
@@ -204,6 +207,12 @@ public sealed partial class PanelFooter : Grid
     private void OnSyncClick(object sender, MouseButtonEventArgs e)
     {
         _usageStore.Refresh();
+        e.Handled = true;
+    }
+
+    private void OnExitClick(object sender, RoutedEventArgs e)
+    {
+        Application.Current?.Shutdown();
         e.Handled = true;
     }
 }

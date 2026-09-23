@@ -191,13 +191,18 @@ public sealed class ApprovalCard : Border
         };
         scope.Items.Add(L10n.Tr("Allow once"));
         scope.Items.Add(L10n.Tr("Allow for this session"));
-        scope.Items.Add(L10n.Tr("Always allow"));
+        if (request.Provider != TriggerTool.Codex)
+        {
+            scope.Items.Add(L10n.Tr("Always allow"));
+        }
         scope.SelectedIndex = 0;
 
         var allow = MakeButton(L10n.Tr("Allow"), primary: true);
         allow.Click += (_, _) =>
         {
-            var chosen = scope.SelectedIndex switch
+            var chosen = request.Provider == TriggerTool.Codex
+                ? scope.SelectedIndex == 1 ? ApprovalScope.Session : ApprovalScope.Once
+                : scope.SelectedIndex switch
             {
                 1 => ApprovalScope.Session,
                 2 => ApprovalScope.Always,

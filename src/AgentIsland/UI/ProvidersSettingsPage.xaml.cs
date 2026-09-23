@@ -78,15 +78,16 @@ public partial class ProvidersSettingsPage : UserControl
             _deepSeekBalanceStore.KickRefresh();
         };
 
-        ApprovalsButton.Clicked += ToggleApprovals;
-        UpdateApprovalsButton();
+        ClaudeApprovalsButton.Clicked += ToggleClaudeApprovals;
+        CodexApprovalsButton.Clicked += ToggleCodexApprovals;
+        UpdateClaudeApprovalsButton();
+        UpdateCodexApprovalsButton();
 
         RefreshRows();
     }
 
-    /// A1–A5: the island can only answer a blocked agent if Claude Code's own
-    /// hooks point back at this executable. Install or remove them here.
-    private void ToggleApprovals()
+    /// Install or remove Claude Code's approval and interaction hooks.
+    private void ToggleClaudeApprovals()
     {
         var wasInstalled = ClaudeHookInstaller.IsInstalled();
         var succeeded = wasInstalled
@@ -94,20 +95,20 @@ public partial class ProvidersSettingsPage : UserControl
             : ClaudeHookInstaller.Install();
         if (!succeeded)
         {
-            ApprovalsRow.Subtitle = wasInstalled
+            ClaudeApprovalsRow.Subtitle = wasInstalled
                 ? L10n.Tr("The Claude hooks could not be removed. Check access to settings.json.")
                 : L10n.Tr("The Claude hooks could not be installed. Check access to settings.json.");
             return;
         }
-        UpdateApprovalsButton();
+        UpdateClaudeApprovalsButton();
     }
 
-    private void UpdateApprovalsButton()
+    private void UpdateClaudeApprovalsButton()
     {
         var state = ClaudeHookInstaller.GetInstallationState();
-        ApprovalsButton.Label = state == ClaudeHookInstaller.InstallationState.Installed
+        ClaudeApprovalsButton.Label = state == ClaudeHookInstaller.InstallationState.Installed
             ? L10n.Tr("Remove") : L10n.Tr("Install");
-        ApprovalsRow.Subtitle = state switch
+        ClaudeApprovalsRow.Subtitle = state switch
         {
             ClaudeHookInstaller.InstallationState.Installed =>
                 L10n.Tr("Wired up. Restart any running Claude Code session so it picks up the hook."),
@@ -116,6 +117,39 @@ public partial class ProvidersSettingsPage : UserControl
             ClaudeHookInstaller.InstallationState.Invalid =>
                 L10n.Tr("Claude settings.json is invalid and could not be read."),
             _ => L10n.Tr("Let the island answer Claude Code permission prompts, questions and plans."),
+        };
+    }
+
+    /// Codex currently exposes permission decisions, not Claude-style
+    /// question/plan tools or durable always-allow rules.
+    private void ToggleCodexApprovals()
+    {
+        var wasInstalled = CodexHookInstaller.IsInstalled();
+        var succeeded = wasInstalled
+            ? CodexHookInstaller.Uninstall()
+            : CodexHookInstaller.Install();
+        if (!succeeded)
+        {
+            CodexApprovalsRow.Subtitle = wasInstalled
+                ? L10n.Tr("The Codex hook could not be removed. Check access to hooks.json.")
+                : L10n.Tr("The Codex hook could not be installed. Check access to hooks.json.");
+            return;
+        }
+        UpdateCodexApprovalsButton();
+    }
+
+    private void UpdateCodexApprovalsButton()
+    {
+        var state = CodexHookInstaller.GetInstallationState();
+        CodexApprovalsButton.Label = state == CodexHookInstaller.InstallationState.Installed
+            ? L10n.Tr("Remove") : L10n.Tr("Install");
+        CodexApprovalsRow.Subtitle = state switch
+        {
+            CodexHookInstaller.InstallationState.Installed =>
+                L10n.Tr("Installed. Review and trust the hook with /hooks in Codex."),
+            CodexHookInstaller.InstallationState.Invalid =>
+                L10n.Tr("Codex hooks.json is invalid and could not be read."),
+            _ => L10n.Tr("Let the island answer Codex permission requests."),
         };
     }
 

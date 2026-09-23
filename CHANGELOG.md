@@ -2,6 +2,14 @@
 
 Belangrijke wijzigingen aan AgentIsland voor Windows worden hier in het Nederlands bijgehouden. Uitgebreide toelichting staat in [docs/releases](docs/releases/README.md).
 
+## 2.8.1 - 23 september 2026
+
+- Codex-goedkeuringsverzoeken kunnen nu via een instelbare hook op het eiland worden afgehandeld.
+- Een Codex-hook moet na installatie eerst met `/hooks` in Codex worden beoordeeld en vertrouwd.
+- Eenmalig of voor de huidige AgentIsland-sessie toestaan; blijvende regels blijven door Codex zelf beheerd.
+- De footer past de rapportknoppen, syncstatus en paginanavigatie netjes in de expanded-, Overview- en Cost-weergave.
+- Een sluitknop in de footer sluit Agent Island direct af.
+
 ## 2.7.0 - 23 september 2026
 
 - De providerduels en speelse duelafbeeldingen zijn uit de rapporten verwijderd; de verdeling blijft neutraal zichtbaar.

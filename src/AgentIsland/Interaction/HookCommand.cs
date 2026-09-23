@@ -9,10 +9,9 @@ namespace AgentIsland.Interaction;
 /// The agent-facing half of the approval pipeline.
 ///
 /// Agents cannot call back into a running WPF app, so `AgentIsland.exe` runs a
-/// second life as a short-lived console command: Claude Code's hook spawns us
-/// with a JSON payload on stdin, we publish a request on the spool, block until
-/// the island answers, and print Claude Code's own decision document on
-/// stdout. One binary, two modes — the hook command is just this exe's path.
+/// second life as a short-lived console command: an agent hook spawns us with
+/// a JSON payload on stdin, we publish a request on the spool, block until the
+/// island answers, and print the agent's decision document on stdout.
 ///
 /// Two hook events are installed:
 ///   PermissionRequest (matcher `*`)  -> A1 permission approval + A5 scopes
@@ -21,6 +20,7 @@ internal static class HookCommand
 {
     public const string PermissionRequestFlag = "--hook-claude-permission-request";
     public const string PreToolUseFlag = "--hook-claude-pre-tool-use";
+    public const string CodexPermissionRequestFlag = "--hook-codex-permission-request";
     public const string SimulateFlag = "--simulate-prompt";
 
     /// How long the hook lets the island think before giving up. When it
@@ -34,6 +34,7 @@ internal static class HookCommand
     public static bool IsHookInvocation(string[] args) =>
         args.Any(a => string.Equals(a, PermissionRequestFlag, StringComparison.OrdinalIgnoreCase)
             || string.Equals(a, PreToolUseFlag, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(a, CodexPermissionRequestFlag, StringComparison.OrdinalIgnoreCase)
             || string.Equals(a, SimulateFlag, StringComparison.OrdinalIgnoreCase));
 
     /// Run the hook and return the process exit code. Never throws: a broken
@@ -49,7 +50,11 @@ internal static class HookCommand
             }
             var permissionRequest = args.Any(a =>
                 string.Equals(a, PermissionRequestFlag, StringComparison.OrdinalIgnoreCase));
-            return Hook(permissionRequest ? "PermissionRequest" : "PreToolUse");
+            var codexPermissionRequest = args.Any(a =>
+                string.Equals(a, CodexPermissionRequestFlag, StringComparison.OrdinalIgnoreCase));
+            return codexPermissionRequest
+                ? Hook("PermissionRequest", TriggerTool.Codex)
+                : Hook(permissionRequest ? "PermissionRequest" : "PreToolUse", TriggerTool.Claude);
         }
         catch
         {
@@ -57,7 +62,7 @@ internal static class HookCommand
         }
     }
 
-    private static int Hook(string hookEvent)
+    private static int Hook(string hookEvent, TriggerTool provider)
     {
         var payload = Console.In.ReadToEnd();
         var channel = new FileInteractionChannel();
@@ -65,7 +70,7 @@ internal static class HookCommand
         // No island running — do not make the agent wait.
         if (!channel.ConsumerAlive(HeartbeatStale)) return 0;
 
-        var request = BuildRequest(payload, hookEvent);
+        var request = BuildRequest(payload, hookEvent, provider);
         if (request is null) return 0;
 
         // An "allow for this session" grant answers without waking the island.
@@ -135,7 +140,10 @@ internal static class HookCommand
         return 0;
     }
 
-    internal static ApprovalRequest? BuildRequest(string payload, string hookEvent)
+    internal static ApprovalRequest? BuildRequest(
+        string payload,
+        string hookEvent,
+        TriggerTool provider = TriggerTool.Claude)
     {
         if (string.IsNullOrWhiteSpace(payload)) return null;
         using var document = JsonDocument.Parse(payload);
@@ -157,6 +165,7 @@ internal static class HookCommand
             };
 
         string? command = null;
+        string? riskCommand = null;
         string? question = null;
         IReadOnlyList<PromptOption> options = Array.Empty<PromptOption>();
         IReadOnlyList<PromptQuestion> parsedQuestions = Array.Empty<PromptQuestion>();
@@ -165,6 +174,8 @@ internal static class HookCommand
         if (toolInput.ValueKind == JsonValueKind.Object)
         {
             command = GetString(toolInput, "command");
+            riskCommand = command;
+            command ??= GetString(toolInput, "description");
             plan = GetString(toolInput, "plan");
             if (kind == PromptKind.Question)
             {
@@ -178,12 +189,12 @@ internal static class HookCommand
         }
 
         var (level, reason) = kind == PromptKind.Permission
-            ? CommandRisk.Classify(command)
+            ? CommandRisk.Classify(riskCommand)
             : (CommandRiskLevel.None, null);
 
         return new ApprovalRequest(
             Guid.NewGuid().ToString("N"),
-            TriggerTool.Claude,
+            provider,
             kind,
             toolName,
             command,

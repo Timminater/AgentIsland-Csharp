@@ -59,14 +59,19 @@
             <ui:Segmented x:Name="TokenCountSegmented" />
         </ui:SettingsRowControl>
 
-        <!-- Approvals (A1–A5): install/remove the Claude Code hooks that let
-             the island answer a blocked agent. -->
+        <!-- Install provider-specific hooks that let the island answer an
+             agent's permission request. -->
         <TextBlock Text="{x:Static ui:ProvidersSettingsPage.ApprovalsSectionLabel}"
                    Style="{StaticResource SettingsSectionHeaderStyle}" />
 
-        <ui:SettingsRowControl x:Name="ApprovalsRow"
+        <ui:SettingsRowControl x:Name="ClaudeApprovalsRow"
                                Title="Claude Code approvals">
-            <ui:PillButtonControl x:Name="ApprovalsButton" />
+            <ui:PillButtonControl x:Name="ClaudeApprovalsButton" />
+        </ui:SettingsRowControl>
+
+        <ui:SettingsRowControl x:Name="CodexApprovalsRow"
+                               Title="Codex approvals">
+            <ui:PillButtonControl x:Name="CodexApprovalsButton" />
         </ui:SettingsRowControl>
 
         <!-- Cost Freshness Strip -->
