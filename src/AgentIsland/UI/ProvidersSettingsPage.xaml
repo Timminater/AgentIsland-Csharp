@@ -74,6 +74,21 @@
             <ui:PillButtonControl x:Name="CodexApprovalsButton" />
         </ui:SettingsRowControl>
 
+        <Border x:Name="CodexHookWarning"
+                Visibility="Collapsed"
+                Margin="10,2,10,8"
+                Padding="10,8"
+                CornerRadius="8"
+                Background="#26FFB547"
+                BorderBrush="{StaticResource AlertAmberBrush}"
+                BorderThickness="1">
+            <TextBlock x:Name="CodexHookWarningText"
+                       FontFamily="{x:Static charts:IslandFonts.Ui}"
+                       FontSize="11"
+                       Foreground="{StaticResource AlertAmberBrush}"
+                       TextWrapping="Wrap" />
+        </Border>
+
         <!-- Cost Freshness Strip -->
         <Grid Margin="10,14,10,14">
             <Grid.ColumnDefinitions>

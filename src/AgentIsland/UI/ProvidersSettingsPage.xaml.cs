@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using AgentIsland.Core;
 using AgentIsland.Backend.Cost;
 using AgentIsland.Backend.Interaction;
@@ -23,6 +24,10 @@ public partial class ProvidersSettingsPage : UserControl
     private readonly ICostStore _costStore;
     private readonly IDeepSeekBalanceStore _deepSeekBalanceStore;
     private readonly IUsageStore _usageStore;
+    private CancellationTokenSource? _codexHookCheck;
+    private readonly DispatcherTimer _codexHookTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private bool _lastCodexEnabled;
+    private bool _codexHookTrusted;
 
     public ProvidersSettingsPage() : this(null) { }
 
@@ -83,6 +88,18 @@ public partial class ProvidersSettingsPage : UserControl
         UpdateClaudeApprovalsButton();
         UpdateCodexApprovalsButton();
 
+        _codexHookTimer.Tick += (_, _) => RefreshCodexHookStatus();
+        Loaded += (_, _) =>
+        {
+            RefreshCodexHookStatus();
+            _codexHookTimer.Start();
+        };
+        Unloaded += (_, _) =>
+        {
+            _codexHookTimer.Stop();
+            _codexHookCheck?.Cancel();
+        };
+
         RefreshRows();
     }
 
@@ -133,9 +150,11 @@ public partial class ProvidersSettingsPage : UserControl
             CodexApprovalsRow.Subtitle = wasInstalled
                 ? L10n.Tr("The Codex hook could not be removed. Check access to hooks.json.")
                 : L10n.Tr("The Codex hook could not be installed. Check access to hooks.json.");
+            ShowCodexHookWarning("AgentIsland could not change the Codex hook. Check hooks.json.");
             return;
         }
         UpdateCodexApprovalsButton();
+        RefreshCodexHookStatus();
     }
 
     private void UpdateCodexApprovalsButton()
@@ -146,11 +165,77 @@ public partial class ProvidersSettingsPage : UserControl
         CodexApprovalsRow.Subtitle = state switch
         {
             CodexHookInstaller.InstallationState.Installed =>
-                L10n.Tr("Installed. Review and trust the hook with /hooks in Codex."),
+                L10n.Tr(_codexHookTrusted
+                    ? "Connected. Codex can send approvals to AgentIsland."
+                    : "Installed. Review and trust the hook with /hooks in Codex."),
             CodexHookInstaller.InstallationState.Invalid =>
                 L10n.Tr("Codex hooks.json is invalid and could not be read."),
             _ => L10n.Tr("Let the island answer Codex permission requests."),
         };
+    }
+
+    private void RefreshCodexHookStatus()
+    {
+        _codexHookCheck?.Cancel();
+        _codexHookCheck?.Dispose();
+        _codexHookCheck = null;
+
+        if (!_visibilityStore.IsEnabled(DisplayProvider.Codex))
+        {
+            _codexHookTrusted = false;
+            UpdateCodexApprovalsButton();
+            CodexHookWarning.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var installation = CodexHookInstaller.GetInstallationState();
+        if (installation != CodexHookInstaller.InstallationState.Installed)
+        {
+            _codexHookTrusted = false;
+            UpdateCodexApprovalsButton();
+            ShowCodexHookWarning(installation == CodexHookInstaller.InstallationState.Invalid
+                ? "Codex hooks.json is invalid. Repair it before using approvals."
+                : "Codex approvals are not connected. Install the AgentIsland hook above.");
+            return;
+        }
+
+        UpdateCodexApprovalsButton();
+        if (CodexHookWarning.Visibility == Visibility.Visible)
+            ShowCodexHookWarning("Checking whether Codex has accepted the AgentIsland hook…");
+        var cancellation = new CancellationTokenSource();
+        _codexHookCheck = cancellation;
+        _ = CheckCodexHookStatusAsync(cancellation);
+    }
+
+    private async Task CheckCodexHookStatusAsync(CancellationTokenSource cancellation)
+    {
+        var status = await CodexHookTrustProbe.CheckAsync(cancellation.Token);
+        if (cancellation.IsCancellationRequested || !ReferenceEquals(_codexHookCheck, cancellation)) return;
+
+        if (status == CodexHookTrustProbe.Status.Trusted)
+        {
+            _codexHookTrusted = true;
+            UpdateCodexApprovalsButton();
+            CodexHookWarning.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _codexHookTrusted = false;
+        UpdateCodexApprovalsButton();
+        ShowCodexHookWarning(status switch
+        {
+            CodexHookTrustProbe.Status.Untrusted => "Codex has not accepted the AgentIsland hook. Open Hooks in Codex and trust it.",
+            CodexHookTrustProbe.Status.Modified => "The AgentIsland hook changed. Open Hooks in Codex and trust it again.",
+            CodexHookTrustProbe.Status.Disabled => "The AgentIsland hook is disabled in Codex. Enable it in Hooks.",
+            CodexHookTrustProbe.Status.Missing => "Codex approvals are not connected. Install the AgentIsland hook above.",
+            _ => "AgentIsland could not confirm the Codex hook. Check that it is enabled and trusted in Codex Hooks.",
+        });
+    }
+
+    private void ShowCodexHookWarning(string message)
+    {
+        CodexHookWarningText.Text = L10n.Tr(message);
+        CodexHookWarning.Visibility = Visibility.Visible;
     }
 
     private void UpdateTokenSubtitle()
@@ -177,6 +262,10 @@ public partial class ProvidersSettingsPage : UserControl
         {
             row.Refresh();
         }
+
+        var codexEnabled = _visibilityStore.IsEnabled(DisplayProvider.Codex);
+        if (IsLoaded && codexEnabled != _lastCodexEnabled) RefreshCodexHookStatus();
+        _lastCodexEnabled = codexEnabled;
 
         // Cost caption
         CostCaption.Text = _costStore.LastUpdated is { } updated

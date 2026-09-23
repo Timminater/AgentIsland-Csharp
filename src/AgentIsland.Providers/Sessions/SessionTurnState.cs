@@ -69,6 +69,7 @@ public static class SessionTurnState
 
     public static SessionTurnStatus Codex(IReadOnlyList<string> lines)
     {
+        DateTimeOffset? latestActivity = null;
         for (var i = lines.Count - 1; i >= 0; i--)
         {
             using var doc = Jsonl.TryParseLine(lines[i]);
@@ -77,10 +78,15 @@ public static class SessionTurnState
             var type = Jsonl.GetString(root, "type");
             var payload = Jsonl.GetObject(root, "payload");
             var payloadType = payload is { } p ? Jsonl.GetString(p, "type") : null;
+            // On Windows an open rollout's LastWriteTime can stay stale while
+            // its length and contents advance. The newest transcript event is
+            // the reliable activity time for an unfinished turn.
+            if (latestActivity is null && type is ("event_msg" or "response_item"))
+                latestActivity = Date(root);
             if (type == "event_msg")
             {
                 if (IsCodexUserOrStart(payloadType))
-                    return new SessionTurnStatus(false, Key(root, lines[i]), Date(root));
+                    return new SessionTurnStatus(false, Key(root, lines[i]), latestActivity ?? Date(root));
                 if (payloadType is "task_complete" or "turn/completed")
                     return new SessionTurnStatus(true, Key(root, lines[i]), Date(root));
             }
@@ -89,10 +95,10 @@ public static class SessionTurnState
                 && payload is { } pm
                 && Jsonl.GetString(pm, "role") == "user")
             {
-                return new SessionTurnStatus(false, Key(root, lines[i]), Date(root));
+                return new SessionTurnStatus(false, Key(root, lines[i]), latestActivity ?? Date(root));
             }
         }
-        return new SessionTurnStatus(false, null, null);
+        return new SessionTurnStatus(false, null, latestActivity);
     }
 
     /// Grok appends one JSON object per session event to `updates.jsonl` with

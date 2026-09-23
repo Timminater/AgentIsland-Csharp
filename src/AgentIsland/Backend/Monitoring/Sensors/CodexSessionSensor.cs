@@ -57,7 +57,8 @@ public sealed class CodexSessionSensor : ISessionSensor
             if (kind is CodexRolloutKind.Automation or CodexRolloutKind.Subagent) continue;
             var projectKey = string.IsNullOrEmpty(cwd) ? sid : cwd;
             if (dedupeProjects && !seenProjects.Add(projectKey)) continue;
-            var state = SessionScanner.SessionState(path, now, lastWorking, null, SessionTurnState.Codex);
+            var state = SessionScanner.SessionState(path, now, lastWorking, null,
+                SessionTurnState.Codex, openTurnFileActivity: true);
             output.Add(new ScannedSession(
                 TriggerTool.Codex,
                 sid,

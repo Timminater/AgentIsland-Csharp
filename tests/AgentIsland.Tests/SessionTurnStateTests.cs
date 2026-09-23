@@ -20,6 +20,8 @@ public class SessionTurnStateTests
             ("codex user after complete suppresses stale alarm", TestCodexUserAfterTaskCompleteIsNotNeedsYou),
             ("codex start after complete suppresses stale alarm", TestCodexTaskStartedAfterTaskCompleteIsNotNeedsYou),
             ("codex complete still triggers needs-you", TestCodexTaskCompleteIsNeedsYou),
+            ("codex long running turn follows transcript writes", TestCodexLongTurnUsesFileActivity),
+            ("codex live events override stale Windows file time", TestCodexLiveEventsOverrideStaleFileTime),
             ("metadata-touched old claude transcript is idle", TestMetadataTouchedOldClaudeTranscriptIsIdle),
             ("fresh claude end_turn is immediately needs-you", TestFreshClaudeEndTurnIsImmediatelyNeedsYou),
             ("newer claude desktop activity suppresses old end_turn", TestClaudeDesktopNewerActivitySuppressesOldEndTurn),
@@ -110,6 +112,50 @@ public class SessionTurnStateTests
         var state = SessionTurnState.Codex(lines);
         Expect(state.IsDone, "codex task complete should be needs-you");
         Expect(state.Key == "t1", "completed codex task should keep its turn id");
+    }
+
+    private static void TestCodexLongTurnUsesFileActivity()
+    {
+        var now = Date("2026-07-02T01:20:00.000Z");
+        var tmp = WriteTranscript(new[]
+        {
+            """{"timestamp":"2026-07-02T01:10:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}""",
+            """{"timestamp":"2026-07-02T01:19:58.000Z","type":"event_msg","payload":{"type":"item_completed"}}""",
+        }, modified: now.AddSeconds(-2));
+        try
+        {
+            var state = SessionScanner.SessionState(tmp, now, EmptyLastWorking, null,
+                SessionTurnState.Codex, openTurnFileActivity: true);
+            Expect(state.Status == ActivityState.Working,
+                "a Codex turn still writing after five minutes must stay working");
+        }
+        finally
+        {
+            File.Delete(tmp);
+        }
+    }
+
+    private static void TestCodexLiveEventsOverrideStaleFileTime()
+    {
+        var now = Date("2026-07-02T02:20:00.000Z");
+        var tmp = WriteTranscript(new[]
+        {
+            """{"timestamp":"2026-07-02T01:10:00.000Z","type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}""",
+            """{"timestamp":"2026-07-02T02:19:58.000Z","type":"event_msg","payload":{"type":"item_completed"}}""",
+        }, modified: now.AddHours(-1));
+        try
+        {
+            var state = SessionScanner.SessionState(tmp, now, EmptyLastWorking, null,
+                SessionTurnState.Codex, openTurnFileActivity: true);
+            Expect(state.Status == ActivityState.Working,
+                "recent Codex events must show working even when Windows reports an old file time");
+            Expect(state.Modified == now.AddSeconds(-2),
+                "the event timestamp should drive the Codex activity time");
+        }
+        finally
+        {
+            File.Delete(tmp);
+        }
     }
 
     private static void TestMetadataTouchedOldClaudeTranscriptIsIdle()

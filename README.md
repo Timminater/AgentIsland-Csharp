@@ -2,7 +2,7 @@
 
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat&logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20x64-0078D6?style=flat&logo=windows)](https://www.microsoft.com/windows)
-[![Tests](https://img.shields.io/badge/Tests-91%20geslaagd-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
+[![Tests](https://img.shields.io/badge/Tests-98%20geslaagd-brightgreen?style=flat&logo=githubactions)](tests/AgentIsland.Tests)
 [![Licentie](https://img.shields.io/badge/Licentie-MIT-blue.svg)](LICENSE)
 
 AgentIsland is een compacte WPF-app voor Windows die de activiteit, gebruikslimieten, kosten en beurten van AI-codeassistenten in een dynamisch eiland bovenaan het scherm toont.
@@ -15,6 +15,7 @@ De app ondersteunt Claude Code, OpenAI Codex, DeepSeek Harness, Google Antigravi
 - Overzicht van verbruik, resterend tegoed, resetmomenten en lokale kostenhistorie.
 - Instelbare voorspelling van de resterende gebruiksduur in de bovenbalk.
 - Goedkeuringen, vragen en plancontroles van Claude Code rechtstreeks op het eiland.
+- Codex-goedkeuringen op het eiland, met een waarschuwing als de benodigde hook nog niet vertrouwd is.
 - Dag-, week- en maandrapporten die lokaal als afbeelding kunnen worden opgeslagen.
 - Snel wisselen tussen alle ingeschakelde providers.
 - Nederlandse en Engelse interface.
@@ -37,7 +38,7 @@ AgentIsland werkt lokaal. Broncode, prompts en gespreksinhoud worden niet door A
 ## Installeren
 
 1. Open [Releases](https://github.com/Timminater/AgentIsland-Csharp/releases).
-2. Download `AgentIsland-2.7.0-win-x64.zip`.
+2. Download `AgentIsland-2.8.5-win-x64.zip`.
 3. Pak het bestand uit.
 4. Start `AgentIsland.exe`.
 
@@ -53,10 +54,10 @@ Vereisten:
 ```powershell
 dotnet build AgentIsland.sln
 dotnet test AgentIsland.sln
-.\build.ps1 -Runtime win-x64 -Version 2.7.0
+.\build.ps1 -Runtime win-x64 -Version 2.8.5
 ```
 
-De pakketbuild verschijnt als `dist/AgentIsland-2.7.0-win-x64.zip`.
+De pakketbuild verschijnt als `dist/AgentIsland-2.8.5-win-x64.zip`.
 
 ## Projectstructuur
 
@@ -74,7 +75,7 @@ docs/releases              Nederlandstalige release-informatie
 - .NET 8, WPF, dependency injection en beheerde achtergrondtaken.
 - Begrensde en incrementele verwerking van lokale logbestanden.
 - Veilige, atomaire opslag van instellingen en goedkeuringsberichten.
-- 91 geslaagde tests: 90 reguliere tests en 1 stress- en resourcetest.
+- 98 geslaagde tests, inclusief de stress- en resourcetest.
 - Een zelfvoorzienend Windows x64-releasepakket met SHA-256-controlebestand.
 
 ## Herkomst en licentie

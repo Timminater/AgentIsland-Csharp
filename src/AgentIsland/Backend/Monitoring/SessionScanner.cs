@@ -193,7 +193,8 @@ public static class SessionScanner
         IReadOnlyDictionary<string, DateTimeOffset> lastWorking,
         DateTimeOffset? externalActivityDate,
         Func<IReadOnlyList<string>, SessionTurnStatus> turnState,
-        bool quietMeansDone = false)
+        bool quietMeansDone = false,
+        bool openTurnFileActivity = false)
     {
         if (path is null)
             return (ActivityState.Idle, null, externalActivityDate ?? DateTimeOffset.MinValue);
@@ -219,7 +220,12 @@ public static class SessionScanner
                     turn.ActivityDate);
             }
         }
+        // For open turns, use the file time as a fallback to the timestamp of
+        // the latest semantic event. Codex's open-file mtime can lag behind
+        // actual writes on Windows, so its turn parser also reads event times.
         var semanticModified = LatestDate(turn.ActivityDate, externalActivityDate);
+        if (openTurnFileActivity && !turn.IsDone)
+            semanticModified = LatestDate(semanticModified, fileModified);
         var effectiveModified = semanticModified ?? fileModified;
         // For a finished turn, external activity inside the bookkeeping grace
         // is Claude Desktop's own post-turn write — not the user returning —
