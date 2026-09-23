@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace AgentIsland.Backend.Alarms;
 
-/// "会话活在哪就跳哪" (macOS 2.1.2): when the CLI that finished a turn is
+/// Spring naar het venster waarin de sessie actief is: when the CLI that finished a turn is
 /// still RUNNING, the alarm click should land in its live terminal window,
 /// not spawn a fresh one over it. Windows terminals put the window on a
 /// different process than the CLI (Windows Terminal is an ancestor, classic

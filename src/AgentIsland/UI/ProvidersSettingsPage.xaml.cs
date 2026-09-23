@@ -146,7 +146,7 @@ public partial class ProvidersSettingsPage : UserControl
 
         // Cost caption
         CostCaption.Text = _costStore.LastUpdated is { } updated
-            ? L10n.TrFormat("last scan {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsChinese))
+            ? L10n.TrFormat("last scan {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsDutch))
             : L10n.Tr("swipe panel to view");
     }
 

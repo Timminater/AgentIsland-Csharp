@@ -7,36 +7,36 @@ public static class ErrorDisplay
 {
     public static string Localize(string error)
     {
-        if (!L10n.IsChinese) return error;
+        if (!L10n.IsDutch) return error;
         return error switch
         {
-            "auth required — run claude" => "需要登录——运行 claude",
-            "re-login: claude /login" => "请重新登录：claude /login",
+            "auth required — run claude" => "aanmelding vereist — voer claude uit",
+            "re-login: claude /login" => "meld opnieuw aan: claude /login",
             // The keychain token 401'd AND the refresh grant failed. Without
             // its own sentinel the caption stayed on the cold-start "auth
             // required" text forever, so a revoked refresh token was
             // indistinguishable from never having signed in (macOS #22).
-            "token refresh failed — sign in again" => "登录续期失败 — 请重新认证",
-            "no codex auth" => "未找到 Codex 登录",
-            "auth expired — codex login" => "登录已过期——运行 codex login",
-            "rate limited" => "已限流",
-            "parse error" => "解析失败",
-            "bad response" => "响应异常",
-            "network timeout" => "网络超时",
-            "network drop" => "网络中断",
-            "no deepseek api key" => "未配置 DeepSeek API Key",
-            "deepseek api key rejected" => "DeepSeek API Key 无效",
+            "token refresh failed — sign in again" => "vernieuwen van aanmelding mislukt — meld opnieuw aan",
+            "no codex auth" => "geen Codex-aanmelding gevonden",
+            "auth expired — codex login" => "aanmelding verlopen — voer codex login uit",
+            "rate limited" => "snelheidslimiet bereikt",
+            "parse error" => "verwerken mislukt",
+            "bad response" => "ongeldig antwoord",
+            "network timeout" => "netwerktime-out",
+            "network drop" => "netwerkverbinding verbroken",
+            "no deepseek api key" => "geen DeepSeek API-sleutel ingesteld",
+            "deepseek api key rejected" => "DeepSeek API-sleutel geweigerd",
             // ClaudeWebLogin failure reasons. They reach the UI verbatim now
             // that a failed browser round surfaces its reason instead of
             // silently spawning a retired `claude auth login`.
-            "login timed out" => "登录超时",
-            "could not open the browser" => "无法打开浏览器",
-            "token exchange failed" => "换取令牌失败",
-            "state mismatch" => "登录校验失败，请重试",
-            "login already in progress" => "已有登录流程在进行中",
+            "login timed out" => "aanmelding duurde te lang",
+            "could not open the browser" => "browser kon niet worden geopend",
+            "token exchange failed" => "tokenuitwisseling mislukt",
+            "state mismatch" => "aanmeldcontrole mislukt — probeer opnieuw",
+            "login already in progress" => "er loopt al een aanmelding",
             _ when error.StartsWith("could not open local callback server", StringComparison.Ordinal) =>
-                "无法启动本地回调服务" + error["could not open local callback server".Length..],
-            _ when error.StartsWith("http ", StringComparison.OrdinalIgnoreCase) => "HTTP 错误 " + error[5..],
+                "lokale terugmeldservice kon niet worden gestart" + error["could not open local callback server".Length..],
+            _ when error.StartsWith("http ", StringComparison.OrdinalIgnoreCase) => "HTTP-fout " + error[5..],
             _ => error,
         };
     }

@@ -38,32 +38,32 @@ public static partial class ReportCards
 
     public static FrameworkElement Weekly(WeeklyReportData data, bool rounded = true)
     {
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
         var hasActualDollars = data.TotalDollars >= 1 && data.Providers.Any(p => p.Tokens > 0 && ReportFormat.ProvidesDollars(p.Provider));
         var hasUnpriced = data.Providers.Any(p => p.Tokens > 0 && !ReportFormat.ProvidesDollars(p.Provider));
         var isPartial = hasActualDollars && hasUnpriced;
 
         var body = BuildWeeklyLayout(
             Header("WEEKLY", data.RangeText),
-            Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, zh),
-            FaceoffStage(data.Providers, zh),
-            WeekBars(data, zh),
-            ModelTable(data.TopModels, zh, data.OmittedModelsCount, data.OmittedPercent));
+            Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this week"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, dutch),
+            FaceoffStage(data.Providers, dutch),
+            WeekBars(data, dutch),
+            ModelTable(data.TopModels, dutch, data.OmittedModelsCount, data.OmittedPercent));
         return Card(body, rounded);
     }
 
     public static FrameworkElement Monthly(MonthlyReportData data, bool rounded = true)
     {
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
         var hasActualDollars = data.TotalDollars >= 1 && data.Providers.Any(p => p.Tokens > 0 && ReportFormat.ProvidesDollars(p.Provider));
         var hasUnpriced = data.Providers.Any(p => p.Tokens > 0 && !ReportFormat.ProvidesDollars(p.Provider));
         var isPartial = hasActualDollars && hasUnpriced;
 
         var body = BuildMonthlyLayout(
             Header("MONTHLY", data.MonthText),
-            Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, zh),
-            FaceoffStage(data.Providers, zh),
-            ModelTable(data.TopModels, zh, data.OmittedModelsCount, data.OmittedPercent));
+            Hero(AgentIsland.UI.Localization.L10n.Tr("tokens this month"), data.TotalTokens, data.TotalDollars, hasActualDollars, isPartial, dutch),
+            FaceoffStage(data.Providers, dutch),
+            ModelTable(data.TopModels, dutch, data.OmittedModelsCount, data.OmittedPercent));
         return Card(body, rounded);
     }
 
@@ -198,7 +198,7 @@ public static partial class ReportCards
         });
         brand.Children.Add(new TextBlock
         {
-            Text = " " + Track(tag),
+            Text = " " + Track(AgentIsland.UI.Localization.L10n.Tr(tag)),
             FontFamily = IslandFonts.Ui,
             FontSize = 11,
             FontWeight = FontWeights.ExtraBold,
@@ -223,7 +223,7 @@ public static partial class ReportCards
 
     private static UIElement Hero(
         string title, long totalTokens, double totalDollars,
-        bool hasActualDollars, bool isPartialDollars, bool zh)
+        bool hasActualDollars, bool isPartialDollars, bool dutch)
     {
         var stack = new StackPanel();
 
@@ -242,7 +242,7 @@ public static partial class ReportCards
 
         stack.Children.Add(titleRow);
 
-        var (value, unit) = ReportFormat.CompactParts(totalTokens, zh);
+        var (value, unit) = ReportFormat.CompactParts(totalTokens, dutch);
         var line = new StackPanel { Orientation = Orientation.Horizontal };
         var numberBrush = IslandColors.Brush(Color.FromRgb(0xF2, 0xF5, 0xF7));
         line.Children.Add(Numeric(new TextBlock
@@ -261,11 +261,11 @@ public static partial class ReportCards
             {
                 Text = unit,
                 FontFamily = IslandFonts.Ui,
-                FontSize = zh ? 24 : 50,
+                FontSize = 50,
                 FontWeight = FontWeights.ExtraBold,
                 Foreground = numberBrush,
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(3, 0, 0, zh ? 6 : 0),
+                Margin = new Thickness(3, 0, 0, 0),
             });
         }
         if (hasActualDollars)
@@ -274,14 +274,14 @@ public static partial class ReportCards
             string dollarText;
             if (isPartialDollars)
             {
-                dollarText = zh
-                    ? $"≈ 相当于 ${money} 的 API 费用 (部分估算)"
+                dollarText = dutch
+                    ? $"≈ ${money} aan API-kosten (gedeeltelijke schatting)"
                     : $"≈ ${money} API value (partial estimate)";
             }
             else
             {
-                dollarText = zh
-                    ? $"≈ 相当于 ${money} 的 API 费用"
+                dollarText = dutch
+                    ? $"≈ ${money} aan API-kosten"
                     : $"≈ ${money} API value";
             }
 
@@ -315,7 +315,7 @@ public static partial class ReportCards
     private const double DuelMarkGap = 10;
     private const double DuelBeamHeight = 6;
 
-    private static UIElement FaceoffStage(IReadOnlyList<ProviderPeriodSlice> providers, bool zh)
+    private static UIElement FaceoffStage(IReadOnlyList<ProviderPeriodSlice> providers, bool dutch)
     {
         var contentWidth = CardWidth - 56; // 28pt card padding each side
         var beamX0 = DuelMarkSide + DuelMarkGap;
@@ -344,7 +344,7 @@ public static partial class ReportCards
         }
         else
         {
-            RenderEmptyStage(stack, contentWidth, beamX0, beamWidth, zh);
+            RenderEmptyStage(stack, contentWidth, beamX0, beamWidth, dutch);
             return stack;
         }
     }
@@ -492,7 +492,7 @@ public static partial class ReportCards
     }
 
     private static void RenderEmptyStage(
-        StackPanel stack, double contentWidth, double beamX0, double beamWidth, bool zh)
+        StackPanel stack, double contentWidth, double beamX0, double beamWidth, bool dutch)
     {
         var canvas = new Canvas { Width = contentWidth, Height = 64 };
         stack.Children.Add(canvas);
@@ -570,7 +570,7 @@ public static partial class ReportCards
 
         var candidates = new[]
         {
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/人物/{filename}",
+            $"pack://application:,,,/AgentIsland;component/Assets/Report/portretten/{filename}",
             $"pack://application:,,,/AgentIsland;component/Assets/Report/{filename}",
         };
 
@@ -657,7 +657,7 @@ public static partial class ReportCards
 
     private static bool HasDuelArt(DisplayProvider left, DisplayProvider right, string result)
     {
-        foreach (var folder in new[] { "Assets/Report/对决", "Assets/Report" })
+        foreach (var folder in new[] { "Assets/Report/duels", "Assets/Report" })
         {
             try
             {
@@ -682,7 +682,7 @@ public static partial class ReportCards
 
         var candidates = new List<string>
         {
-            $"pack://application:,,,/AgentIsland;component/Assets/Report/对决/duel-{leftSlug}-{result}-{rightSlug}.png",
+            $"pack://application:,,,/AgentIsland;component/Assets/Report/duels/duel-{leftSlug}-{result}-{rightSlug}.png",
             $"pack://application:,,,/AgentIsland;component/Assets/Report/duel-{leftSlug}-{result}-{rightSlug}.png",
         };
 
@@ -848,7 +848,7 @@ public static partial class ReportCards
 
     // MARK: - Weekly bars
 
-    private static UIElement WeekBars(WeeklyReportData data, bool zh)
+    private static UIElement WeekBars(WeeklyReportData data, bool dutch)
     {
         var peak = data.DailyTokens.Count > 0 ? Math.Max(data.DailyTokens.Max(), 1) : 1;
         var hasAnyTokens = data.DailyTokens.Any(t => t > 0);
@@ -871,7 +871,7 @@ public static partial class ReportCards
             // row with a " " placeholder).
             cell.Children.Add(Numeric(new TextBlock
             {
-                Text = isPeak ? ReportFormat.CompactString(tokens, zh) : " ",
+                Text = isPeak ? ReportFormat.CompactString(tokens, dutch) : " ",
                 FontFamily = IslandFonts.Ui,
                 FontSize = 9.5,
                 FontWeight = FontWeights.ExtraBold,
@@ -911,7 +911,7 @@ public static partial class ReportCards
     /// is normalized to 100%. Long model names truncate cleanly without crushing
     /// numbers or percent columns.
     private static UIElement ModelTable(
-        IReadOnlyList<ModelShare> models, bool zh, int omittedCount = 0, double omittedPercent = 0)
+        IReadOnlyList<ModelShare> models, bool dutch, int omittedCount = 0, double omittedPercent = 0)
     {
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(88) });
@@ -1028,7 +1028,7 @@ public static partial class ReportCards
                     });
                 }
 
-                var tokens = Cell(ReportFormat.CompactString(model.Tokens, zh), IslandColors.White(0.55), TextAlignment.Right);
+                var tokens = Cell(ReportFormat.CompactString(model.Tokens, dutch), IslandColors.White(0.55), TextAlignment.Right);
                 Grid.SetRow(tokens, rowIndex);
                 Grid.SetColumn(tokens, 1);
                 table.Children.Add(tokens);
@@ -1056,8 +1056,8 @@ public static partial class ReportCards
             if (omittedCount > 0 && omittedPercent > 0)
             {
                 var percentText = omittedPercent < 0.005 ? "<1" : Core.Formatting.PercentInt(omittedPercent).ToString();
-                var omittedText = zh
-                    ? $"其余 {omittedCount} 个模型 ({percentText}%)"
+                var omittedText = dutch
+                    ? $"Overige {omittedCount} modellen ({percentText}%)"
                     : $"{omittedCount} other models ({percentText}%)";
                 var omittedBlock = new TextBlock
                 {

@@ -364,7 +364,6 @@ public class InteractionTests
         {
             L10n.Current = L10n.Language.Dutch;
             Assert.True(L10n.IsDutch);
-            Assert.False(L10n.IsChinese);
             Assert.NotEqual("Quit Agent Island", L10n.Tr("Quit Agent Island"));
             // Unknown keys still fall back rather than blanking the UI.
             Assert.Equal("Some unknown key", L10n.Tr("Some unknown key"));

@@ -154,19 +154,19 @@ public sealed class IslandModel : IIslandModel
 
     public Size Size => _state switch
     {
-        // 紧凑态 (Compact)：以中间黑区收拢为限制
-        // 若开启“常用数据显示”，保留用量药丸槽位，消除中间 200px 黑色死区 (16 + (38+104)*2 = 300px)
+        // Compacte toestand: beperk de breedte tot de centrale zwarte zone.
+        // Met permanente gebruiksgegevens blijft ruimte voor de gebruikspillen behouden.
         IslandState.Compact when (_alwaysShowUsageStore?.Enabled ?? false) =>
             new Size(CompactCenterGap + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
-        // 若未开启常用数据显示，中间黑区收拢且不显示药丸 (16 + 38*2 = 92px)
+        // Zonder permanente gebruiksgegevens verdwijnt de ruimte voor de pillen.
         IslandState.Compact =>
             new Size(CompactCenterGap + TabWidth * 2, SilhouetteHeight),
 
-        // 默认 / 鼠标悬停 (Peek)：展开恢复原来的完整宽度 (200 + (38+104)*2 = 484px)
+        // Standaard en bij aanwijzen: herstel de volledige breedte.
         IslandState.Peek =>
             new Size(NotchWidth + (TabWidth + PillSlotWidth) * 2, SilhouetteHeight),
 
-        // 点击展开 (Expanded)：原来的完整大看板宽度 (800px)
+        // Uitgeklapt: gebruik de volledige dashboardbreedte.
         IslandState.Expanded =>
             new Size(ExpandedWidth, SilhouetteHeight + _expandedContentHeight),
 

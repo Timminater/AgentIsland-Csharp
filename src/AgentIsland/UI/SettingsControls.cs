@@ -5,7 +5,7 @@ namespace AgentIsland.UI;
 
 /// WPF's default ComboBox is a light-theme control — white face, grey
 /// chrome — and it read as exactly that on the dark settings page (owner
-/// review, 2026-08-09: 质感太差). One dark template, compiled in
+/// review, 2026-08-09: de visuele afwerking was onvoldoende. One dark template, compiled in
 /// SettingsStyles.xaml, shared by every picker.
 public static class DarkComboStyle
 {

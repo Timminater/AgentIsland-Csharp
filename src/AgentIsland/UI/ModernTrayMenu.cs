@@ -78,14 +78,14 @@ public sealed class ModernTrayMenu
         bool isTrans = _isTransparentModeQuery?.Invoke() ?? false;
         if (isTrans)
         {
-            return L10n.IsChinese
-                ? "✓ 恢复正常模式 (当前: 70%透明穿透)"
+            return L10n.IsDutch
+                ? "✓ Normale modus herstellen (nu: 70% transparant en doorklikbaar)"
                 : "✓ Exit transparent mode";
         }
         else
         {
-            return L10n.IsChinese
-                ? "透明穿透模式 (70%透明)"
+            return L10n.IsDutch
+                ? "Transparante modus (70% transparant en doorklikbaar)"
                 : "Transparent mode (70% opacity, click-through)";
         }
     }

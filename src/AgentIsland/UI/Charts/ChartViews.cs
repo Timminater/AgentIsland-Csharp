@@ -1000,7 +1000,7 @@ public sealed class ChartTile : StackPanel
 public static class IslandFonts
 {
     // Explicit CJK fallback: without it WPF walks its composite font for
-    // missing glyphs and Chinese lands on a serif face that clashes with
+    // missing glyphs and unsupported scripts land on a serif face that clashes with
     // the Latin sans (the macOS build gets PingFang for free from SF Pro).
     public static readonly FontFamily Ui = new(
         "Segoe UI Variable Text, Segoe UI, Microsoft YaHei UI, Microsoft YaHei");

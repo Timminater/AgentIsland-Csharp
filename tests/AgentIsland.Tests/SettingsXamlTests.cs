@@ -491,7 +491,7 @@ public class SettingsXamlTests
         var originalLang = L10n.Current;
         try
         {
-            foreach (var lang in new[] { L10n.Language.English, L10n.Language.SimplifiedChinese })
+            foreach (var lang in new[] { L10n.Language.English, L10n.Language.Dutch })
             {
                 L10n.Current = lang;
 

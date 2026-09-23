@@ -12,11 +12,9 @@ public static class AppLanguageStore
 
     public static L10n.Language Load()
     {
-        // Verification-rig override: the CI snapshot sweep renders the
-        // Chinese and English UIs on a machine whose prefs say neither.
+        // Verification-rig override for deterministic localized snapshots.
         switch (Environment.GetEnvironmentVariable("AGENTISLAND_LANG"))
         {
-            case "zh": return L10n.Language.SimplifiedChinese;
             case "en": return L10n.Language.English;
             case "nl": return L10n.Language.Dutch;
         }
@@ -24,7 +22,6 @@ public static class AppLanguageStore
         return raw switch
         {
             "en" => L10n.Language.English,
-            "zh-Hans" => L10n.Language.SimplifiedChinese,
             "nl" => L10n.Language.Dutch,
             _ => L10n.Language.Auto,
         };
@@ -35,7 +32,6 @@ public static class AppLanguageStore
         Preferences.Set(Key, language switch
         {
             L10n.Language.English => "en",
-            L10n.Language.SimplifiedChinese => "zh-Hans",
             L10n.Language.Dutch => "nl",
             _ => "",
         });

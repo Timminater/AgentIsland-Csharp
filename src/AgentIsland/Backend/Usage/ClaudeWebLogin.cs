@@ -177,8 +177,8 @@ public sealed class ClaudeWebLogin : IClaudeWebLogin
     }
 
     /// The callback page shown in the browser — same dark card and copy as
-    /// the macOS version. Localized, not hardcoded Chinese: this page leaked
-    /// Chinese into the English UI once already (owner report, 1.7.2).
+    /// the macOS version. Localized rather than hardcoded: this page once
+    /// displayed the wrong language in the English interface (owner report, 1.7.2).
     private static async Task Respond(HttpListenerResponse response, bool ok)
     {
         var emoji = ok ? "✅" : "⚠️";

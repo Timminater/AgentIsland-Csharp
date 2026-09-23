@@ -37,8 +37,7 @@ public sealed partial class GeneralSettingsPage : UserControl
         LanguageCombo.SelectedIndex = currentLang switch
         {
             L10n.Language.English => 1,
-            L10n.Language.SimplifiedChinese => 2,
-            L10n.Language.Dutch => 3,
+            L10n.Language.Dutch => 2,
             _ => 0,
         };
         LanguageCombo.SelectionChanged += OnLanguageSelectionChanged;
@@ -71,8 +70,7 @@ public sealed partial class GeneralSettingsPage : UserControl
         var chosen = LanguageCombo.SelectedIndex switch
         {
             1 => L10n.Language.English,
-            2 => L10n.Language.SimplifiedChinese,
-            3 => L10n.Language.Dutch,
+            2 => L10n.Language.Dutch,
             _ => L10n.Language.Auto,
         };
         if (chosen == AppLanguageStore.Load()) return;

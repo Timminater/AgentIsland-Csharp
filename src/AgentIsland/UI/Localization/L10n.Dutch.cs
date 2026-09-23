@@ -144,15 +144,19 @@ public static partial class L10n
         ["Daily report"] = "Dagelijks rapport",
         ["Daily"] = "Dagelijks",
         ["tokens today"] = "tokens vandaag",
-        ["PROMPT CACHE"] = "PROMPT CACHE",
-        ["HOSTS / MODELS"] = "HOSTS / MODELS",
+        ["PROMPT CACHE"] = "PROMPTCACHE",
+        ["HOSTS / MODELS"] = "PROVIDERS / MODELLEN",
         ["{0} active"] = "{0} actief",
         ["{0} models"] = "{0} modellen",
         ["saved ${0}"] = "${0} bespaard",
-        ["24H PULSE"] = "24H PULSE",
+        ["24H PULSE"] = "VERBRUIK PER UUR",
         ["🔥 {0:00}:00 · {1}"] = "🔥 {0:00}:00 · {1}",
-        ["AGENTS & MODELS"] = "AGENTS & MODELS",
-        ["AGENT ISLAND · LOCAL ONLY"] = "AGENT ISLAND · LOCAL ONLY",
+        ["AGENTS & MODELS"] = "PROVIDERS EN MODELLEN",
+        ["AGENT ISLAND · LOCAL ONLY"] = "AGENT ISLAND · ALLEEN LOKAAL",
+        ["SHARE"] = "AANDEEL",
+        ["WEEKLY"] = "WEEKRAPPORT",
+        ["MONTHLY"] = "MAANDRAPPORT",
+        ["DAILY"] = "DAGRAPPORT",
         ["(Today)"] = "(Vandaag)",
         ["(Yesterday)"] = "(Gisteren)",
         ["≈ ${0} API value"] = "≈ ${0} aan API-waarde",
@@ -450,7 +454,7 @@ public static partial class L10n
         ["Enable any number of providers. One is active in the top bar; use the switcher to move between the others"] = "Schakel zoveel providers in als je wilt. Eén provider is actief in de bovenbalk; gebruik de wisselaar voor de andere",
 
         // Placeholder-only keys carried over verbatim: these are not part of
-        // ChineseTable, so they have no zh source copy — kept so no existing
+        // the legacy translation table, so they have no older source copy — kept so no existing
         // Dutch string regresses.
         ["Transcripts & diffs…"] = "Transcripten en diffs…",
         ["Allow"] = "Toestaan",

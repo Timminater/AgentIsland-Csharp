@@ -116,11 +116,11 @@ public class DailyReportCardTests
         var todayLabel = DailyReportData.FormatPager(today);
         var yesterdayLabel = DailyReportData.FormatPager(today.AddDays(-1));
         var olderLabel = DailyReportData.FormatPager(new DateTime(2025, 1, 2));
-        if (ReportFormat.IsChinese)
+        if (ReportFormat.IsDutch)
         {
-            if (!todayLabel.EndsWith("(今天)")) throw new Exception("Today must carry the (今天) suffix.");
-            if (!yesterdayLabel.EndsWith("(昨天)")) throw new Exception("Yesterday must carry the (昨天) suffix.");
-            if (!olderLabel.StartsWith("2025年1月2日")) throw new Exception("Older days render the plain date.");
+            if (!todayLabel.EndsWith("(Vandaag)")) throw new Exception("Vandaag moet de juiste Nederlandse toevoeging krijgen.");
+            if (!yesterdayLabel.EndsWith("(Gisteren)")) throw new Exception("Gisteren moet de juiste Nederlandse toevoeging krijgen.");
+            if (!olderLabel.StartsWith("2 jan 2025")) throw new Exception("Oudere dagen gebruiken de gewone datum.");
         }
         else
         {

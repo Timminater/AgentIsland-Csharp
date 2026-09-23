@@ -46,17 +46,16 @@ public static class Formatting
             value.ToString(value >= 100 ? "0" : "0.#", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    /// Long-form "when it happens" countdown: "4小时后"/"3分钟后" in zh,
-    /// "in 4h"/"in 3m" in en — the trigger-page reset caption format.
-    public static string LongCountdown(TimeSpan until, bool chinese)
+    /// Long-form countdown for Dutch or English interface captions.
+    public static string LongCountdown(TimeSpan until, bool dutch)
     {
         var seconds = Math.Max(0, until.TotalSeconds);
-        if (chinese)
+        if (dutch)
         {
-            if (seconds < 60) return "1分钟内";
-            if (seconds < 3600) return $"{(int)(seconds / 60)}分钟后";
-            if (seconds < 86400) return $"{(int)(seconds / 3600)}小时后";
-            return $"{(int)(seconds / 86400)}天后";
+            if (seconds < 60) return "binnen 1 min";
+            if (seconds < 3600) return $"over {(int)(seconds / 60)} min";
+            if (seconds < 86400) return $"over {(int)(seconds / 3600)} uur";
+            return $"over {(int)(seconds / 86400)} dagen";
         }
         if (seconds < 60) return "under 1m";
         if (seconds < 3600) return $"in {(int)(seconds / 60)}m";
@@ -64,24 +63,22 @@ public static class Formatting
         return $"in {(int)(seconds / 86400)}d";
     }
 
-    /// Relative "synced" label with second granularity under a minute:
-    /// "58秒前", "2 分钟前", "1 小时前" — matching the macOS abbreviated
-    /// relative formatter.
-    public static string RelativeAgo(TimeSpan since, bool chinese)
+    /// Relative sync label with second granularity under a minute.
+    public static string RelativeAgo(TimeSpan since, bool dutch)
     {
         var seconds = Math.Max(0, since.TotalSeconds);
-        if (seconds < 5) return chinese ? "刚刚" : "just now";
+        if (seconds < 5) return dutch ? "zojuist" : "just now";
         if (seconds < 60)
         {
             var s = (int)seconds;
-            return chinese ? $"{s}秒前" : $"{s}s ago";
+            return dutch ? $"{s} sec geleden" : $"{s}s ago";
         }
         if (seconds < 3600)
         {
             var m = (int)(seconds / 60);
-            return chinese ? $"{m} 分钟前" : $"{m}m ago";
+            return dutch ? $"{m} min geleden" : $"{m}m ago";
         }
         var h = (int)(seconds / 3600);
-        return chinese ? $"{h} 小时前" : $"{h}h ago";
+        return dutch ? $"{h} uur geleden" : $"{h}h ago";
     }
 }

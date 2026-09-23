@@ -1158,7 +1158,7 @@ public partial class IslandWindow : Window
         _hoverIntent?.Stop();
         UpdateHalo();
 
-        // 鼠标移出灵动岛区域：自动缩回紧凑岛
+        // Klap automatisch terug wanneer de aanwijzer het eiland verlaat.
         var delay = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
         delay.Tick += (_, _) =>
         {

@@ -12,7 +12,7 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
     /// Built-in presets, synthesized to match the character of the macOS
     /// alert-sound palette — the full 14-name list the Mac app offers, in
     /// the same order. Keys are stable; the display names localize
-    /// (低音, 吹气, 瓶子, …). Declared before Shared: static initializers
+    /// (laag, blazen, fles, enzovoort). Declared before Shared: static initializers
     /// run in declaration order, and the instance ctor reads this array.
     public static readonly string[] SoundPresets =
     {
@@ -181,8 +181,7 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
         return SoundSynth.EnsurePreset(_soundChoice);
     }
 
-    /// Localized display name for a preset key — the zh names mirror the
-    /// macOS sound list (低音, 吹气, 瓶子, …).
+    /// Localized display name for a preset key, translated for the Dutch interface.
     public static string PresetLabel(string key)
     {
         if (key.StartsWith(SystemTones.StoragePrefix, StringComparison.Ordinal))
@@ -190,23 +189,23 @@ public sealed class AgentReminderStore : INotifyPropertyChanged
             var toneKey = key[SystemTones.StoragePrefix.Length..];
             return SystemTones.LabelFor(toneKey) ?? toneKey;
         }
-        if (!AgentIsland.UI.Localization.L10n.IsChinese) return key;
+        if (!AgentIsland.UI.Localization.L10n.IsDutch) return key;
         return key switch
         {
-            "Basso" => "低音",
-            "Blow" => "吹气",
-            "Bottle" => "瓶子",
-            "Frog" => "青蛙",
-            "Funk" => "放克",
-            "Glass" => "玻璃",
-            "Hero" => "英雄",
-            "Morse" => "摩斯",
-            "Ping" => "叮",
-            "Pop" => "泡泡",
-            "Purr" => "呼噜",
-            "Sosumi" => "嗖咪",
-            "Submarine" => "水下",
-            "Tink" => "叮当",
+            "Basso" => "Laag",
+            "Blow" => "Blazen",
+            "Bottle" => "Fles",
+            "Frog" => "Kikker",
+            "Funk" => "Funk",
+            "Glass" => "Glas",
+            "Hero" => "Held",
+            "Morse" => "Morse",
+            "Ping" => "Ping",
+            "Pop" => "Pop",
+            "Purr" => "Spinnen",
+            "Sosumi" => "Sosumi",
+            "Submarine" => "Onderzeeër",
+            "Tink" => "Tik",
             _ => key,
         };
     }

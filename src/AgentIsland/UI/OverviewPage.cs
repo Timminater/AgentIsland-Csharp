@@ -242,7 +242,7 @@ public sealed class OverviewPage : Border
             var column = (first - start).Days / Rows;
             var label = new TextBlock
             {
-                Text = AgentIsland.UI.Localization.L10n.IsChinese ? $"{month}月" : first.ToString("MMM"),
+                Text = AgentIsland.UI.Localization.L10n.IsDutch ? first.ToString("MMM", new System.Globalization.CultureInfo("nl-NL")) : first.ToString("MMM"),
                 FontFamily = IslandFonts.Ui,
                 FontSize = 10,
                 Foreground = IslandColors.Brush(IslandColors.White(0.45)),
@@ -428,7 +428,7 @@ public sealed class OverviewPage : Border
     private void ShowDetail(DateTime day)
     {
         _days.TryGetValue(day, out var providers);
-        var date = day.ToString(AgentIsland.UI.Localization.L10n.IsChinese ? "M月d日" : "MMM d");
+        var date = day.ToString(AgentIsland.UI.Localization.L10n.IsDutch ? "d MMM" : "MMM d", AgentIsland.UI.Localization.L10n.NumberCulture);
         var parts = new List<string>();
         var targets = _visibilityStore.Enabled;
         var active = targets.Count > 0 ? (IEnumerable<DisplayProvider>)targets : DisplayProviders.All;

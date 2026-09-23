@@ -74,8 +74,7 @@ public sealed record WeeklyReportData(
         // an estimate.
         var dollars = targets.Sum(p => cost?.Summary(p).WeeklyModels.Sum(m => m.Dollars) ?? 0.0);
 
-        // The card follows the app language — a card destined for WeChat
-        // groups must read Chinese when the UI is Chinese.
+        // The card follows the selected app language.
         var range = FormatRange(days[0], anchor);
         var (topModels, omittedCount, omittedPercent) = ReportFormat.BuildTopModelsDetailed(
             cost != null ? ReportFormat.ProviderModels(cost, targets, s => s.WeeklyModels) : Array.Empty<(AgentIsland.UI.Providers.DisplayProvider, ModelSpend)>(), top: 3, tokenModeStore: tokenModeStore);
@@ -150,16 +149,16 @@ public sealed record WeeklyReportData(
             mode == AgentIsland.Backend.Settings.TokenCountMode.All);
     }
 
-    internal static string FormatRange(DateTime first, DateTime last) => ReportFormat.IsChinese
-        ? $"{first:M月d日} – {last:M月d日}"
+    internal static string FormatRange(DateTime first, DateTime last) => ReportFormat.IsDutch
+        ? $"{first.ToString("d MMM", CultureInfo.GetCultureInfo("nl-NL"))} – {last.ToString("d MMM", CultureInfo.GetCultureInfo("nl-NL"))}"
         : $"{first.ToString("MMM d", CultureInfo.InvariantCulture)} – {last.ToString("MMM d", CultureInfo.InvariantCulture)}";
 
     internal static IReadOnlyList<string> LettersFor(IReadOnlyList<DateTime> days)
     {
-        var zh = ReportFormat.IsChinese;
-        var zhDays = new[] { "日", "一", "二", "三", "四", "五", "六" };
+        var dutch = ReportFormat.IsDutch;
+        var zhDays = new[] { "z", "m", "d", "w", "d", "v", "z" };
         return days
-            .Select(d => zh
+            .Select(d => dutch
                 ? zhDays[(int)d.DayOfWeek]
                 : d.ToString("ddd", CultureInfo.InvariantCulture)[..1])
             .ToArray();
@@ -185,7 +184,7 @@ public sealed record MonthlyReportData(
     {
         var cost = costStore ?? (App.Instance?.Services?.GetService(typeof(ICostStore)) as ICostStore);
         var today = DateTime.Today;
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
 
         var mode = (tokenModeStore ?? (App.Instance?.Services?.GetService(typeof(TokenCountModeStore)) as TokenCountModeStore))?.Mode ?? AgentIsland.Backend.Settings.TokenCountMode.All;
         var targets = (visibilityStore ?? (App.Instance?.Services?.GetService(typeof(IProviderVisibilityStore)) as IProviderVisibilityStore))?.Enabled ?? [];
@@ -203,7 +202,7 @@ public sealed record MonthlyReportData(
             cost != null ? ReportFormat.ProviderModels(cost, targets, s => s.MonthModels) : Array.Empty<(AgentIsland.UI.Providers.DisplayProvider, ModelSpend)>(), top: 5, tokenModeStore: tokenModeStore);
 
         return new MonthlyReportData(
-            zh ? $"{today:yyyy年M月}" : today.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            dutch ? today.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("nl-NL")) : today.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             totalTokens,
             totalDollars,
             providers,
@@ -222,7 +221,7 @@ public sealed record MonthlyReportData(
         TokenCountModeStore? tokenModeStore = null,
         IProviderVisibilityStore? visibilityStore = null)
     {
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
         var mode = (tokenModeStore ?? (App.Instance?.Services?.GetService(typeof(TokenCountModeStore)) as TokenCountModeStore))?.Mode ?? AgentIsland.Backend.Settings.TokenCountMode.All;
 
         long BucketValue(DailyTokenBucket bucket) =>
@@ -246,7 +245,7 @@ public sealed record MonthlyReportData(
             top: 5, tokenModeStore: tokenModeStore);
 
         return new MonthlyReportData(
-            zh ? $"{start:yyyy年M月}" : start.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            dutch ? start.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("nl-NL")) : start.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
             totalTokens,
             totalDollars,
             providers,
@@ -263,8 +262,8 @@ public sealed record MonthlyReportData(
 /// count (TokenEvent carries no session identity, and invented ones would
 /// break the no-fake-data promise).
 public sealed record DailyReportData(
-    string DateText,                        // card corner, "9月9日" / "Sep 9"
-    string PagerLabel,                      // "2026年9月9日 (今天)" / "Sep 9, 2026 (Today)"
+    string DateText,                        // card corner, "9 sep" / "Sep 9"
+    string PagerLabel,                      // "9 sep 2026 (Vandaag)" / "Sep 9, 2026 (Today)"
     string DeltaText,                       // "↑ 18.4%" / "— " when no baseline
     bool DeltaUp,                           // arrow direction; also picks the tint
     bool HasDelta,
@@ -454,18 +453,18 @@ public sealed record DailyReportData(
             mode == AgentIsland.Backend.Settings.TokenCountMode.All);
     }
 
-    internal static string FormatDate(DateTime day) => ReportFormat.IsChinese
-        ? $"{day:M月d日}"
+    internal static string FormatDate(DateTime day) => ReportFormat.IsDutch
+        ? day.ToString("d MMM", CultureInfo.GetCultureInfo("nl-NL"))
         : day.ToString("MMM d", CultureInfo.InvariantCulture);
 
     internal static string FormatPager(DateTime day)
     {
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
         var today = DateTime.Today;
-        var relative = day == today ? (zh ? "今天" : "Today")
-            : day == today.AddDays(-1) ? (zh ? "昨天" : "Yesterday")
+        var relative = day == today ? (dutch ? "Vandaag" : "Today")
+            : day == today.AddDays(-1) ? (dutch ? "Gisteren" : "Yesterday")
             : null;
-        var date = zh ? $"{day:yyyy年M月d日}" : day.ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
+        var date = dutch ? day.ToString("d MMM yyyy", CultureInfo.GetCultureInfo("nl-NL")) : day.ToString("MMM d, yyyy", CultureInfo.InvariantCulture);
         return relative is null ? date : $"{date} ({relative})";
     }
 
@@ -500,7 +499,7 @@ public sealed record DailyModelRow(
 /// Shared number/caption formatting for both cards.
 public static class ReportFormat
 {
-    public static bool IsChinese => AgentIsland.UI.Localization.L10n.IsChinese;
+    public static bool IsDutch => AgentIsland.UI.Localization.L10n.IsDutch;
 
     /// Model list filtered by specified active providers.
     public static IEnumerable<(AgentIsland.UI.Providers.DisplayProvider Provider, ModelSpend Spend)> ProviderModels(
@@ -608,9 +607,9 @@ public static class ReportFormat
             or AgentIsland.UI.Providers.DisplayProvider.DeepSeek
             or AgentIsland.UI.Providers.DisplayProvider.Antigravity);
 
-    public static string CompactString(long n, bool zh)
+    public static string CompactString(long n, bool dutch)
     {
-        var (value, unit) = CompactParts(n, zh);
+        var (value, unit) = CompactParts(n, dutch);
         return value + unit;
     }
 
@@ -635,17 +634,10 @@ public static class ReportFormat
         return raw;
     }
 
-    /// (value, unit). Chinese counts in 亿/万 — the way the number is
-    /// actually said — English in B/M/K.
-    public static (string Value, string Unit) CompactParts(long n, bool zh)
+    /// Compact counts use the familiar B/M/K units in both supported languages.
+    public static (string Value, string Unit) CompactParts(long n, bool dutch)
     {
         double v = n;
-        if (zh)
-        {
-            if (v >= 100_000_000) return (Trim(v / 100_000_000), "亿");
-            if (v >= 10_000) return (Trim(v / 10_000), "万");
-            return (n.ToString(CultureInfo.InvariantCulture), "");
-        }
         return v switch
         {
             >= 1_000_000_000 => (Trim(v / 1_000_000_000), "B"),
@@ -657,7 +649,7 @@ public static class ReportFormat
 
     private static string Trim(double v)
     {
-        // No trailing zeros — "99.5亿", never "99.50亿".
+        // Geen overbodige nullen in compacte getallen.
         var s = v >= 100
             ? v.ToString("F0", CultureInfo.InvariantCulture)
             : v.ToString("F2", CultureInfo.InvariantCulture);

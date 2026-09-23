@@ -1,45 +1,34 @@
-# Architecture
+# Architectuur
 
-## 依赖方向
+## Afhankelijkheidsrichting
 
 ```text
-AgentIsland (WPF / Generic Host)
-├── AgentIsland.Core
-├── AgentIsland.Providers ──> AgentIsland.Core
-└── AgentIsland.Windows  ──> AgentIsland.Core
+AgentIsland.Core
+    ↑
+AgentIsland.Providers      AgentIsland.Windows
+    ↑                         ↑
+             AgentIsland (WPF)
 ```
 
-Core 不引用 WPF、WinForms、Registry 或 Win32。Windows 目录解析、进程/窗口控制、托盘、更新替换和屏幕定位属于 `AgentIsland.Windows`；布局、动画和交互属于 WPF 项目。
+`AgentIsland.Core` bevat platformonafhankelijke modellen en contracten. `AgentIsland.Providers` verwerkt providergegevens. `AgentIsland.Windows` bevat Windows-paden, processen, opslag en systeemintegratie. Het WPF-project vormt de toepassingshost en de zichtbare interface.
 
-WPF 项目内部也保持同样的二分：`AgentIsland.UI` 是窗口/控件/视觉层，`AgentIsland.Backend.*` 是桌面进程内的后台编排层。这里的 Backend 不是 Web 服务器。
+## Verantwoordelijkheden
 
-## 分类
+- Kern: statussen, gebruiksgegevens, kostenmodellen, instellingencontracten en algemene rekenregels.
+- Providers: sessie-, quota- en kostenadapters voor de ingebouwde providers.
+- Windows: lokale gegevenspaden, veilige bestandsopslag, procesnavigatie en Windows-specifieke diensten.
+- WPF: vensters, bedieningselementen, animaties, weergavemodellen en toepassingscompositie.
 
-### 跨平台候选
+## Provideruitbreiding
 
-- `AgentKey`、`AgentDescriptor`、`AgentCapabilities`
-- `ActivityState`、`ScannedSession`、`AppUsage`、Cost 数据结构
-- JSON/JSONL 解析、会话状态判定、格式化、费用聚合、缓存策略
-- Claude/Codex/Grok/Cursor 费用解析、Antigravity/Grok/Usage payload 解析
-- HTTP/文件读取等接口的契约（具体路径与凭据解析由平台层注入）
+Een provider verklaart alleen de mogelijkheden die werkelijk beschikbaar zijn: activiteit, gebruik, kosten en sessienavigatie. Nieuwe providers worden in broncode geregistreerd. Dynamisch laden van willekeurige DLL's maakt geen deel uit van het huidige ontwerp.
 
-### Windows/WPF
+Een volledig nieuwe providersleutel vereist ook aanpassing van de vaste interfacekoppelingen, zichtbaarheid, selectie, activiteitstypen, logo's en tests. Alleen registratie in dependency injection is niet voldoende.
 
-- `IslandPaths` 以及 `%APPDATA%` / `%LOCALAPPDATA%` 约定
-- WPF Window、Control、Storyboard、MediaPlayer、Dispatcher
-- tray `NotifyIcon`、屏幕与窗口位置、前台窗口、Win32 P/Invoke
-- Windows 原生 SQLite、启动项、更新安装与进程启动
-- `CursorDatabaseReader` 对 `winsqlite3.dll` 的只读封装
+## Achtergrondverwerking
 
-## Agent 能力
+De toepassing gebruikt `Microsoft.Extensions.Hosting`. Periodieke taken draaien buiten de WPF-interface en sturen alleen zichtbare wijzigingen terug naar de interface-thread.
 
-Agent 不要求实现一套固定的“5 小时 + 7 天”数据模型。目录中的 `AgentCapabilities` 只声明该 Agent 实际支持的能力；具体 quota 形状、账单周期和会话边界由 Provider 自己解释。新增 Agent 的最小路径是：
+## Opslag en veiligheid
 
-1. 增加一个稳定 key 和 descriptor；
-2. 增加对应 Provider 文件夹与可用的能力适配器；
-3. 在组合根接入适配器；
-4. 为解析/聚合规则补测试。
-
-这些能力接口目前仍桥接到固定运行时枚举。全新 key 必须同步扩展 `DisplayProvider`、`DisplayProviders.Parse/All`、可见性/槽位及 UI 映射；活动监控还需扩展 `TriggerTool` 和对应转换。仅向 DI 和目录注册未知 key，不能使其进入当前用量、费用和活动链路。新增 Agent 验收必须覆盖这些映射和启用后的数据流。
-
-当前不引入动态 DLL 插件加载，也不把每个小功能拆成独立项目；新增 Agent 先以源码内置模块形式接入：在 WPF 组合根注册 `IAgentProvider`，并在 `BuiltInAgentCatalog` 注册匹配的描述符/模块，等真实需求出现再演进插件机制。
+Instellingen en interactieberichten worden atomair geschreven. Lokale logbestanden worden alleen-lezen verwerkt. Goedkeuringen vervallen veilig en vallen bij afwezigheid van de app terug op het oorspronkelijke providerproces.

@@ -88,8 +88,8 @@ public sealed class ReportCalendarPopup : Popup
 
         void Refresh()
         {
-            title.Text = AgentIsland.UI.Localization.L10n.IsChinese
-                ? _visibleMonth.ToString("yyyy年M月")
+            title.Text = AgentIsland.UI.Localization.L10n.IsDutch
+                ? _visibleMonth.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("nl-NL"))
                 : _visibleMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
 
             var canGoBack = _visibleMonth.AddMonths(-1) >= new DateTime(_minDay.Year, _minDay.Month, 1);
@@ -128,9 +128,9 @@ public sealed class ReportCalendarPopup : Popup
         header.Children.Add(forwardArrow);
         body.Children.Add(header);
 
-        var zh = AgentIsland.UI.Localization.L10n.IsChinese;
-        var weekdayLetters = zh
-            ? new[] { "日", "一", "二", "三", "四", "五", "六" }
+        var dutch = AgentIsland.UI.Localization.L10n.IsDutch;
+        var weekdayLetters = dutch
+            ? new[] { "zo", "ma", "di", "wo", "do", "vr", "za" }
             : new[] { "S", "M", "T", "W", "T", "F", "S" };
         var letterRow = new UniformGrid { Columns = 7, Margin = new Thickness(0, 2, 0, 6) };
         foreach (var letter in weekdayLetters)
@@ -148,7 +148,7 @@ public sealed class ReportCalendarPopup : Popup
         body.Children.Add(letterRow);
         body.Children.Add(grid);
 
-        // Footer: "回到今天" / "Jump to Today" shortcut
+        // Snelkoppeling om terug te keren naar vandaag.
         var footer = new Border
         {
             Margin = new Thickness(0, 8, 0, 2),
@@ -168,7 +168,7 @@ public sealed class ReportCalendarPopup : Popup
             HorizontalAlignment = HorizontalAlignment.Center,
             Child = new TextBlock
             {
-                Text = AgentIsland.UI.Localization.L10n.IsChinese ? "回到今天" : "Jump to Today",
+                Text = AgentIsland.UI.Localization.L10n.IsDutch ? "Terug naar vandaag" : "Jump to Today",
                 FontFamily = IslandFonts.Ui,
                 FontSize = 11,
                 FontWeight = FontWeights.Medium,

@@ -128,7 +128,7 @@ public sealed partial class PanelFooter : Grid
         {
             SyncLabel.Text = L10n.TrFormat(
                 "synced {0}",
-                Formatting.RelativeAgo(DateTimeOffset.Now - stamp, L10n.IsChinese));
+                Formatting.RelativeAgo(DateTimeOffset.Now - stamp, L10n.IsDutch));
         }
         else
         {

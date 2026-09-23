@@ -2,7 +2,7 @@ using System.Windows.Media;
 
 namespace AgentIsland.UI.Theme;
 
-/// <summary>Grok Bot SVG paths from assets/Report/agent-logo-animations.html.
+/// <summary>Grok Bot vector paths used by the animated provider mark.
 /// Coordinates retain its -15 -15 259 259 viewBox; geometries are shared and frozen.</summary>
 internal static class GrokBotGeometry
 {

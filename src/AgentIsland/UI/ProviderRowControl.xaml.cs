@@ -220,7 +220,7 @@ public partial class ProviderRowControl : UserControl
     private string ProviderSubtitle(AppUsage usage)
     {
         var synced = _usageStore.LastUpdated is { } updated
-            ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsChinese))
+            ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - updated, L10n.IsDutch))
             : L10n.Tr("idle");
         var five = WindowCaption(usage.FiveHour);
         var week = WindowCaption(usage.Weekly);
@@ -327,7 +327,7 @@ public partial class ProviderRowControl : UserControl
         if (balance.LastUpdated is { } updated)
         {
             parts.Add(L10n.TrFormat("synced {0}", Formatting.RelativeAgo(
-                DateTimeOffset.Now - updated, L10n.IsChinese)));
+                DateTimeOffset.Now - updated, L10n.IsDutch)));
         }
 
         if (balance.Snapshot is { } snapshot)
@@ -361,7 +361,7 @@ public partial class ProviderRowControl : UserControl
     }
 
     private static string GuestSync(DateTimeOffset? updated) => updated is { } stamp
-        ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - stamp, L10n.IsChinese))
+        ? L10n.TrFormat("synced {0}", Formatting.RelativeAgo(DateTimeOffset.Now - stamp, L10n.IsDutch))
         : L10n.Tr("idle");
 
     private static int Percent(double fraction) => Formatting.PercentInt(fraction);

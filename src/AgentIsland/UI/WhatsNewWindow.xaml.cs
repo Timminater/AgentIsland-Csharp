@@ -213,20 +213,17 @@ public sealed partial class WhatsNewWindow : Window
         else Flip(_page + 1);
     }
 
-    /// English UI prefers the -en capture when one exists; zh art is the
-    /// fallback so a missing translation never blanks the slot.
+    /// Use the language-neutral capture when one exists and fall back to the
+    /// original artwork so a missing image never blanks the slot.
     private static BitmapImage? LoadPoster(string imageName)
     {
-        if (!L10n.IsChinese)
+        try
         {
-            try
-            {
-                return new BitmapImage(new Uri(
-                    $"pack://application:,,,/Assets/{imageName}-en.png"));
-            }
-            catch
-            {
-            }
+            return new BitmapImage(new Uri(
+                $"pack://application:,,,/Assets/{imageName}-en.png"));
+        }
+        catch
+        {
         }
         try
         {

@@ -597,7 +597,7 @@ internal sealed class DeepSeekBalanceBlock : StackPanel
             var state = DeepSeekBalanceText.Availability(balance);
             var sync = store.LastUpdated is { } updated
                 ? L10n.TrFormat("synced {0}", Core.Formatting.RelativeAgo(
-                    DateTimeOffset.Now - updated, L10n.IsChinese))
+                    DateTimeOffset.Now - updated, L10n.IsDutch))
                 : L10n.Tr("idle");
             _status.Text = store.ErrorCaption is { } error
                 ? "⚠ " + ErrorDisplay.Localize(error)

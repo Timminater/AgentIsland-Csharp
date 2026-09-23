@@ -243,8 +243,8 @@ public sealed class TurnAlarmWindow : Window
     /// gap, the macOS resetDetail.
     private static string ResetDetail(DateTimeOffset resetAt)
     {
-        var culture = AgentIsland.UI.Localization.L10n.IsChinese
-            ? System.Globalization.CultureInfo.GetCultureInfo("zh-CN")
+        var culture = AgentIsland.UI.Localization.L10n.IsDutch
+            ? System.Globalization.CultureInfo.GetCultureInfo("nl-NL")
             : System.Globalization.CultureInfo.CurrentCulture;
         var clock = resetAt.ToLocalTime().ToString("t", culture);
         var minutes = Math.Max(1, (int)Math.Round((resetAt - DateTimeOffset.Now).TotalMinutes));

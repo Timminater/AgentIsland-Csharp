@@ -1,22 +1,18 @@
-# AgentIsland 版本更新与发布日志索引 (Release Documentation)
+# Release-informatie
 
-本目录记录 AgentIsland for Windows 各正式版本的详细更新日志、架构设计决策与技术演进说明。
+Deze map bevat de Nederlandstalige release-informatie van AgentIsland voor Windows.
 
-| 版本号 | 发布日期 | 核心主题 | 详情文档 |
-| --- | --- | --- | --- |
-| **v2.6.0** | 2026-09-22 | 可配置的剩余额度阈值、动态/固定消耗窗口与顶栏预计用尽倒计时 | [v2.6.0 Release Notes](v2.6.0.md) |
-| **v2.5.0** | 2026-09-13 | 审批并发可靠性、多问题回答、完整 Hook 检测、全服务托盘与报告、会话差异修复、可访问性与校验更新 | [v2.5.0 Release Notes](v2.5.0.md) |
-| **v2.4.0** | 2026-09-09 | 岛内联审批（权限/问答/计划）、危险命令警示、授权范围、会话记录与差异查看器、荷兰语 | [v2.4.0 Release Notes](v2.4.0.md) |
-| **v2.3.0** | 2026-09-09 | 取消最多两家限制、单一活动服务、悬停切换器、Usage/Cost 紧凑行布局 | [v2.3.0 Release Notes](v2.3.0.md) |
-| **v2.2.1** | 2026-09-09 | 现代暗黑托盘微卡片、70%透明鼠标穿透模式、150%高DPI居中修复 | [v2.2.1 Release Notes](v2.2.1.md) |
-| **v2.2.0** | 2026-09-09 | 日报卡、缓存与小时明细、Antigravity 动态模型识别、多彩状态视觉 | [v2.2.0 Release Notes](v2.2.0.md) |
-| **v1.2.1** | 2026-09-08 | 灵动岛无操作自适应收缩、双 Agent 死区收拢与常驻用量、报告窗口 L10n 与健壮性 | [v1.2.1 Release Notes](v1.2.1.md) |
-| **v1.2.0** | 2026-09-06 | DI 主导的 C# 架构重构、双 Agent 限制与 1 年压力测试、开箱默认体验 | [v1.2.0 Release Notes](v1.2.0.md) |
-| **v1.0.1** | 2026-09-05 | Windows 独立工程化、内核级物理内存修剪（<100MB）、流切片优化 | [v1.0.1 Release Notes](v1.0.1.md) |
+| Versie | Datum | Hoofdonderwerp |
+| --- | --- | --- |
+| [2.6.1](v2.6.1.md) | 23 september 2026 | Nederlandstalige documentatie en taalcorrecties |
+| [2.6.0](v2.6.0.md) | 22 september 2026 | Voorspelling wanneer quota of saldo opraakt |
+| [2.5.0](v2.5.0.md) | 13 september 2026 | Betrouwbaarheid, toegankelijkheid en veilige updates |
+| [2.4.0](v2.4.0.md) | 9 september 2026 | Goedkeuringen en sessieverslagen op het eiland |
+| [2.3.0](v2.3.0.md) | 9 september 2026 | Onbeperkte providerselectie en snelle wisselaar |
+| [2.2.1](v2.2.1.md) | 9 september 2026 | Nieuw systeemvakmenu en transparante modus |
+| [2.2.0](v2.2.0.md) | 9 september 2026 | Dagrapport en betere kostengegevens |
+| [1.2.1](v1.2.1.md) | 8 september 2026 | Compacte eilandinteractie en rapportverbeteringen |
+| [1.2.0](v1.2.0.md) | 6 september 2026 | Moderne C#-architectuur en stresstests |
+| [1.0.1](v1.0.1.md) | 5 september 2026 | Geheugen- en prestatieverbeteringen |
 
----
-
-## 🛠️ CI 自动化发布说明
-- 每次在 `release` 分支提交或推送 `v*.*.*` 标签时，GitHub Actions 会自动触发 `.github/workflows/release.yml`；
-- 构建流程会分开运行常规回归测试与压力/资源测试，编译自包含可执行文件并打包生成 `dist/AgentIsland-{Version}-win-x64.zip`；当前主分支基线为 90 项常规测试 + 1 项压力/资源测试；
-- CI 会自动读取 `docs/releases/v{Version}.md` 作为 GitHub Release 的官方发布说明并自动发布。
+Een versie-tag start de automatische GitHub-workflow. Deze voert de reguliere tests en de stress- en resourcetest uit, bouwt het zelfstandige Windows x64-pakket en publiceert het zipbestand met SHA-256-controlebestand.

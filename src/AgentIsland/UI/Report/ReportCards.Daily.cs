@@ -8,7 +8,7 @@ using AgentIsland.UI.Theme;
 
 namespace AgentIsland.UI.Report;
 
-/// Daily share card (assets/Report/daily-report-card.html): one local day,
+/// Daily share card: one local day,
 /// hour-resolved. Hero total with a day-over-day delta pill, a two-cell KPI
 /// strip (cache / hosts·models — no sessions count, no turns: per-call
 /// semantics no longer hold across providers), a 24-hour token pulse with
@@ -19,14 +19,14 @@ public static partial class ReportCards
 {
     public static FrameworkElement Daily(DailyReportData data, bool rounded = true)
     {
-        var zh = ReportFormat.IsChinese;
+        var dutch = ReportFormat.IsDutch;
         var body = BuildDailyLayout(
             Header("DAILY", data.DateText),
-            DailyHero(data, zh),
-            DailyKpiStrip(data, zh),
-            DailyPulse(data, zh),
-            DailyHierarchy(data, zh),
-            DailyFooter(zh));
+            DailyHero(data, dutch),
+            DailyKpiStrip(data, dutch),
+            DailyPulse(data, dutch),
+            DailyHierarchy(data, dutch),
+            DailyFooter(dutch));
         return Card(body, rounded);
     }
 
@@ -60,7 +60,7 @@ public static partial class ReportCards
         return grid;
     }
 
-    private static UIElement DailyHero(DailyReportData data, bool zh)
+    private static UIElement DailyHero(DailyReportData data, bool dutch)
     {
         var stack = new StackPanel();
         var titleRow = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 2) };
@@ -90,7 +90,7 @@ public static partial class ReportCards
         }
         stack.Children.Add(titleRow);
 
-        var (value, unit) = ReportFormat.CompactParts(data.TotalTokens, zh);
+        var (value, unit) = ReportFormat.CompactParts(data.TotalTokens, dutch);
         var line = new StackPanel { Orientation = Orientation.Horizontal };
         line.Children.Add(Numeric(new TextBlock
         {
@@ -108,18 +108,18 @@ public static partial class ReportCards
             {
                 Text = unit,
                 FontFamily = IslandFonts.Ui,
-                FontSize = zh ? 20 : 42,
+                FontSize = 42,
                 FontWeight = FontWeights.ExtraBold,
                 Foreground = IslandColors.Brush(HeroText),
                 VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(3, 0, 0, zh ? 5 : 0),
+                Margin = new Thickness(3, 0, 0, 0),
             });
         }
         if (data.HasActualDollars)
         {
             var money = ReportFormat.Money(data.TotalDollars);
-            var dollarText = zh
-                ? (data.IsPartialDollars ? "≈ ${money} 的 API 费用 (部分估算)" : "≈ ${money} 的 API 费用")
+            var dollarText = dutch
+                ? (data.IsPartialDollars ? $"≈ ${money} aan API-kosten (gedeeltelijke schatting)" : $"≈ ${money} aan API-kosten")
                 : (data.IsPartialDollars ? "≈ ${money} API value (partial estimate)" : "≈ ${money} API value");
             dollarText = string.Format(dollarText.Replace("{money}", "{0}"), money);
             line.Children.Add(new TextBlock
@@ -144,7 +144,7 @@ public static partial class ReportCards
         return stack;
     }
 
-    private static UIElement DailyKpiStrip(DailyReportData data, bool zh)
+    private static UIElement DailyKpiStrip(DailyReportData data, bool dutch)
     {
         var plate = new Border
         {
@@ -225,7 +225,7 @@ public static partial class ReportCards
         return cell;
     }
 
-    private static UIElement DailyPulse(DailyReportData data, bool zh)
+    private static UIElement DailyPulse(DailyReportData data, bool dutch)
     {
         var stack = new StackPanel();
         var titleRow = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 3) };
@@ -243,7 +243,7 @@ public static partial class ReportCards
             var peak = Numeric(new TextBlock
             {
                 Text = AgentIsland.UI.Localization.L10n.TrFormat(
-                    "🔥 {0:00}:00 · {1}", data.PeakHour, ReportFormat.CompactString(data.PeakTokens, zh)),
+                    "🔥 {0:00}:00 · {1}", data.PeakHour, ReportFormat.CompactString(data.PeakTokens, dutch)),
                 FontFamily = IslandFonts.Ui,
                 FontSize = 9,
                 FontWeight = FontWeights.ExtraBold,
@@ -318,7 +318,7 @@ public static partial class ReportCards
         return stack;
     }
 
-    private static UIElement DailyHierarchy(DailyReportData data, bool zh)
+    private static UIElement DailyHierarchy(DailyReportData data, bool dutch)
     {
         var stack = new StackPanel();
         var headerRow = new DockPanel { LastChildFill = false, Margin = new Thickness(2, 0, 2, 2) };
@@ -332,7 +332,7 @@ public static partial class ReportCards
         });
         var legend = new TextBlock
         {
-            Text = "SHARE",
+            Text = AgentIsland.UI.Localization.L10n.Tr("SHARE"),
             FontFamily = IslandFonts.Ui,
             FontSize = 8.5,
             FontWeight = FontWeights.SemiBold,
@@ -365,13 +365,13 @@ public static partial class ReportCards
         {
             if (totalBudget <= 0) break;
             var allowedModels = Math.Min(maxModelsPerHost, Math.Max(0, totalBudget - 1));
-            stack.Children.Add(AgentBlock(agent, zh, allowedModels));
+            stack.Children.Add(AgentBlock(agent, dutch, allowedModels));
             totalBudget -= 1 + Math.Min(allowedModels, agent.Models.Count);
         }
         return stack;
     }
 
-    private static UIElement AgentBlock(DailyAgentRow agent, bool zh, int maxModels)
+    private static UIElement AgentBlock(DailyAgentRow agent, bool dutch, int maxModels)
     {
         var block = new StackPanel();
         var accent = ProviderIdentity.Accent(agent.Provider);
@@ -424,7 +424,7 @@ public static partial class ReportCards
 
         var tokens = Numeric(new TextBlock
         {
-            Text = ReportFormat.CompactString(agent.Tokens, zh),
+            Text = ReportFormat.CompactString(agent.Tokens, dutch),
             FontFamily = IslandFonts.Ui,
             FontSize = 11.5,
             FontWeight = FontWeights.ExtraBold,
@@ -470,7 +470,7 @@ public static partial class ReportCards
         var shownCount = Math.Min(agent.Models.Count, maxModels);
         for (var index = 0; index < shownCount; index++)
         {
-            children.Children.Add(ModelRow(agent.Models[index], shownCount, index, zh));
+            children.Children.Add(ModelRow(agent.Models[index], shownCount, index, dutch));
         }
         if (children.Children.Count > 0)
         {
@@ -479,7 +479,7 @@ public static partial class ReportCards
         return block;
     }
 
-    private static UIElement ModelRow(DailyModelRow model, int siblingCount, int index, bool zh)
+    private static UIElement ModelRow(DailyModelRow model, int siblingCount, int index, bool dutch)
     {
         var row = new Grid { Height = 17 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -514,7 +514,7 @@ public static partial class ReportCards
 
         var tokens = Numeric(new TextBlock
         {
-            Text = ReportFormat.CompactString(model.Tokens, zh),
+            Text = ReportFormat.CompactString(model.Tokens, dutch),
             FontFamily = IslandFonts.Ui,
             FontSize = 9.5,
             FontWeight = FontWeights.Bold,
@@ -543,7 +543,7 @@ public static partial class ReportCards
         return row;
     }
 
-    private static UIElement DailyFooter(bool zh)
+    private static UIElement DailyFooter(bool dutch)
     {
         var stack = new StackPanel { Margin = new Thickness(0, 5, 0, 0) };
         stack.Children.Add(new Border
