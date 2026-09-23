@@ -21,12 +21,14 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
     private const string PlacementKey = "AgentIsland.islandPlacement";
     private const string FloatXKey = "AgentIsland.floatX";
     private const string FloatYKey = "AgentIsland.floatY";
+    private const string TopBarFractionKey = "AgentIsland.topBarFraction";
     // Legacy key from the first edge iteration.
     private const string LegacyEdgeKey = "AgentIsland.islandEdge";
 
     private IslandPlacement _placement;
     private double? _floatX;
     private double? _floatY;
+    private double _topBarFraction;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -50,6 +52,10 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
         }
         _floatX = Preferences.Get<double?>(FloatXKey);
         _floatY = Preferences.Get<double?>(FloatYKey);
+        var topBarFraction = Preferences.Get<double?>(TopBarFractionKey);
+        _topBarFraction = topBarFraction is { } value && double.IsFinite(value)
+            ? Math.Clamp(value, 0, 1)
+            : 0.5;
     }
 
     public IslandPlacement Placement
@@ -67,6 +73,17 @@ public sealed class IslandPositionStore : INotifyPropertyChanged
     /// The persisted floating top-left in DIP, or null until first dragged.
     public (double X, double Y)? FloatingPoint =>
         _floatX is { } x && _floatY is { } y ? (x, y) : null;
+
+    /// Horizontal location of the top bar within the chosen screen's usable
+    /// width: 0 = left edge, 0.5 = centered, 1 = right edge.
+    public double TopBarFraction => _topBarFraction;
+
+    public void SetTopBarFraction(double fraction)
+    {
+        if (!double.IsFinite(fraction)) return;
+        _topBarFraction = Math.Clamp(fraction, 0, 1);
+        Preferences.Set(TopBarFractionKey, _topBarFraction);
+    }
 
     /// Persist a dragged floating position; silently ignored unless the
     /// island is actually in Floating mode (a drag in another mode is noise).

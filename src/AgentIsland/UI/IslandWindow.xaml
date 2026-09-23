@@ -62,7 +62,7 @@
                      CENTER; peek pills grow OUTBOARD of them (the side
                      columns animate 0 -> 104); in expanded the side columns
                      collapse so the logos glide out to the panel corners. -->
-                <Grid x:Name="TopStrip" Grid.Row="0">
+                <Grid x:Name="TopStrip" Grid.Row="0" Background="Transparent">
                     <!-- The star center column is never animated directly:
                          it absorbs whatever the silhouette width leaves over
                          (the notch gap; zero in solo-centered mode). -->

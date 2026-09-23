@@ -118,6 +118,12 @@ public partial class IslandWindow : Window
     // events (placement/usage/alert) forever.
     private readonly List<Action> _teardown = new();
     private bool _hovering;
+    private bool _topBarPress;
+    private bool _topBarDragging;
+    private double _topBarPressScreenX;
+    private double _topBarPressLeft;
+    private double _topBarDipPerPixel;
+    private Rect _topBarDragArea;
     private System.Windows.Controls.StackPanel? _leftTitle;
     private System.Windows.Controls.StackPanel? _rightTitle;
     private ResetCardChip? _leftResetCards;
@@ -428,9 +434,13 @@ public partial class IslandWindow : Window
         ApplyEdgeLayout();
         ApplyInterfaceScale();
         PositionOnScreen();
-        // Floating mode: drag the silhouette to move (and remember) the
-        // window; a non-drag press still expands.
+        // Floating mode can move freely. Top-bar mode tracks horizontal
+        // movement separately so normal clicks still expand or switch agents.
         Silhouette.MouseLeftButtonDown += OnSilhouetteMouseDown;
+        Silhouette.PreviewMouseLeftButtonDown += OnTopBarMouseDown;
+        Silhouette.PreviewMouseMove += OnTopBarMouseMove;
+        Silhouette.PreviewMouseLeftButtonUp += OnTopBarMouseUp;
+        Silhouette.LostMouseCapture += (_, _) => FinishTopBarDrag();
 
         // The sweep ring tracks the silhouette through every spring morph
         // (+4 so half its stroke rides outside the edge).
@@ -439,6 +449,10 @@ public partial class IslandWindow : Window
             InvalidateSilhouetteBounds();
             Sweep.Width = args.NewSize.Width + 4;
             Sweep.Height = args.NewSize.Height + 4;
+            // A compact bar parked at the edge grows wider when expanded.
+            // Follow the saved fraction so the whole visible panel stays on
+            // the chosen screen throughout the morph.
+            if (!IsFloating && !_topBarPress) PositionOnScreen();
         };
         System.ComponentModel.PropertyChangedEventHandler onLowPower =
             (_, _) => Dispatcher.BeginInvoke(UpdateHalo);
@@ -975,6 +989,9 @@ public partial class IslandWindow : Window
     private bool IsFloating =>
         _positionStore.Placement == AgentIsland.Backend.Settings.IslandPlacement.Floating;
 
+    private double VisibleSilhouetteWidthDip() =>
+        (Silhouette.ActualWidth > 0 ? Silhouette.ActualWidth : 280) * _scaleStore.Scale;
+
     private void PositionOnScreen()
     {
         var area = WorkAreaDip(_targetDisplayStore.Resolve());
@@ -1004,7 +1021,9 @@ public partial class IslandWindow : Window
         }
         else
         {
-            Left = area.Left + (area.Width - Width) / 2;
+            var silW = VisibleSilhouetteWidthDip();
+            Left = TopBarPlacement.WindowLeft(area.Left, area.Width,
+                Width, silW, store.TopBarFraction);
             Top = area.Top;
         }
 
@@ -1121,6 +1140,7 @@ public partial class IslandWindow : Window
     /// Re-shapes the silhouette corners for the current placement.
     private void ApplyEdgeLayout()
     {
+        TopStrip.Cursor = IsFloating ? Cursors.SizeAll : Cursors.Arrow;
         Silhouette.CornerRadius = ShapeRadius(_model.CornerRadius);
         Sweep.CornerRadius = ShapeRadius(_model.CornerRadius + 2);
         InvalidateSilhouetteBounds();
@@ -1209,6 +1229,81 @@ public partial class IslandWindow : Window
             Focus();
         }
         e.Handled = true;
+    }
+
+    private void OnTopBarMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (IsFloating || e.OriginalSource is not DependencyObject source
+            || (!ReferenceEquals(source, TopStrip) && !TopStrip.IsAncestorOf(source))
+            || ReferenceEquals(source, ProviderSwitcher)
+            || ProviderSwitcher.IsAncestorOf(source)
+            || (_leftResetCards is not null
+                && (ReferenceEquals(source, _leftResetCards) || _leftResetCards.IsAncestorOf(source)))
+            || (_rightResetCards is not null
+                && (ReferenceEquals(source, _rightResetCards) || _rightResetCards.IsAncestorOf(source)))) return;
+
+        _topBarPress = true;
+        _topBarDragging = false;
+        _topBarPressScreenX = PointToScreen(e.GetPosition(this)).X;
+        _topBarPressLeft = Left;
+        _topBarDipPerPixel = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice.M11 ?? 1;
+        _topBarDragArea = WorkAreaDip(_targetDisplayStore.Resolve());
+    }
+
+    private void OnTopBarMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_topBarPress) return;
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            FinishTopBarDrag();
+            return;
+        }
+
+        // Keep the press-time DPI scale for the whole gesture. A transparent
+        // canvas can overhang a neighbouring monitor with a different scale.
+        var delta = (PointToScreen(e.GetPosition(this)).X - _topBarPressScreenX) * _topBarDipPerPixel;
+        if (!_topBarDragging)
+        {
+            if (Math.Abs(delta) < SystemParameters.MinimumHorizontalDragDistance) return;
+            _topBarDragging = true;
+            if (!Silhouette.CaptureMouse())
+            {
+                _topBarPress = false;
+                _topBarDragging = false;
+                return;
+            }
+        }
+
+        var area = _topBarDragArea;
+        var silW = VisibleSilhouetteWidthDip();
+        Left = TopBarPlacement.ClampWindowLeft(_topBarPressLeft + delta,
+            area.Left, area.Width, Width, silW);
+        Top = area.Top;
+        e.Handled = true;
+    }
+
+    private void OnTopBarMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_topBarPress) return;
+        var dragged = _topBarDragging;
+        FinishTopBarDrag();
+        if (dragged) e.Handled = true;
+    }
+
+    private void FinishTopBarDrag()
+    {
+        if (!_topBarPress) return;
+        var dragged = _topBarDragging;
+        _topBarPress = false;
+        _topBarDragging = false;
+        if (Silhouette.IsMouseCaptured) Silhouette.ReleaseMouseCapture();
+        if (!dragged) return;
+
+        var area = _topBarDragArea;
+        var silW = VisibleSilhouetteWidthDip();
+        _positionStore.SetTopBarFraction(TopBarPlacement.Fraction(Left,
+            area.Left, area.Width, Width, silW));
+        PositionOnScreen();
     }
 
     /// Scripted glow/sweep verification: render the live visual tree (sweep +

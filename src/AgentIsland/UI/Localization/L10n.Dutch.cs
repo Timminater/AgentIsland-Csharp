@@ -287,6 +287,7 @@ public static partial class L10n
         ["Position"] = "Positie",
         ["Island position"] = "Positie van het eiland",
         ["A bar at the top of the screen, or a floating widget you drag anywhere."] = "Een balk bovenaan het scherm, of een zwevend widget dat je overal naartoe sleept",
+        ["Drag the top bar left or right, or choose a floating widget you can drag anywhere."] = "Sleep de bovenbalk naar links of rechts, of kies een zwevend eiland dat je overal naartoe kunt slepen.",
         ["Floating window"] = "Zwevend venster",
         ["Slide the island along its edge to clear tabs and title-bar buttons."] = "Schuif het eiland langs de rand om browsertabs en titelbalkknoppen vrij te houden",
         ["Keep the 5-hour and weekly percentages beside the logos without hovering."] = "Toon de percentages van 5 uur en deze week naast de logo's zonder te zweven",

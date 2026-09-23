@@ -85,7 +85,7 @@
 
         <!-- Island position -->
         <ui:SettingsRowControl Title="Island position"
-                               Subtitle="A bar at the top of the screen, or a floating widget you drag anywhere.">
+                               Subtitle="Drag the top bar left or right, or choose a floating widget you can drag anywhere.">
             <ComboBox x:Name="PlacementBox" Width="180"
                       Style="{StaticResource DarkComboBoxStyle}"
                       VerticalAlignment="Center" />
